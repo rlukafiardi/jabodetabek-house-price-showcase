@@ -84,7 +84,7 @@ Each estimate is shown with two ranges from out-of-fold errors under spatial-blo
 ## Monitoring and refresh
 Weekly: the live model is scored on listings first seen after its training cutoff. Monthly: a challenger is trained and
 replaces the live model only if it is better than the noise on identical folds and in no city worse by more than a set margin.
-See `docs/architecture-decision-record.md`.
+
 
 ## Data
 No listing-level data, descriptions or page contents are published, in this repository or on the site: only kecamatan and H3 aggregates (at least 5 listings per area) and model estimates.
