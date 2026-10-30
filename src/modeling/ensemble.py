@@ -1,7 +1,7 @@
 """The chosen model (E18): mean of XGBoost, extra trees and ridge on the final features plus the agent-filled spec fields, the OSM
 neighbourhood context and an out-of-fold TF-IDF text score, predicting log price per m² of land. Paired CV on identical folds:
 20.3 / 23.1% median APE (random / spatial); E14a (the same without the context) was beaten in 5 of 5 repeats under both schemes,
-and the single tuned XGBoost by about 1.7 / 1.3 points. FEATURES (without the context) is what the browser fallback ships."""
+and the single tuned XGBoost by about 1.7 / 1.3 points."""
 
 import numpy as np
 import pandas as pd
