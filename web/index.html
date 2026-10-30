@@ -1,98 +1,110 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jabodetabek House Prices</title>
-  <meta name="description" content="Asking price per m² of land across Jabodetabek, and a price estimate with a range for your house.">
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Harga Rumah Jabodetabek</title>
+  <meta name="description" content="Peta harga rumah per m² tanah di Jabodetabek, dan perkiraan harga rumah Anda lengkap dengan kisarannya.">
   <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Jabodetabek house prices</h1>
-    <p>Where asking prices per m² of land sit, and what a house like yours would ask.</p>
-  </header>
-  <noscript><p class="notice">This page needs JavaScript for the map and the estimate.</p></noscript>
-  <main>
-    <section id="panel" aria-labelledby="estimate-title">
-      <h2 id="estimate-title">Estimate a house</h2>
-      <p class="hint">Click the map to place the house, or type its coordinates.</p>
-      <form id="form" novalidate>
-        <fieldset>
-          <legend>Location</legend>
-          <div class="row">
-            <label>Latitude <input id="lat" type="number" step="any" min="-6.8" max="-5.9" inputmode="decimal" required></label>
-            <label>Longitude <input id="lon" type="number" step="any" min="106.4" max="107.3" inputmode="decimal" required></label>
-          </div>
-          <button type="button" id="locate" class="secondary">Use my location</button>
-        </fieldset>
-        <fieldset>
-          <legend>The house</legend>
-          <div class="row">
-            <label>Land area (m²) <input id="land_area" type="number" min="15" max="5000" step="any" inputmode="decimal" required></label>
-            <label>Building area (m²) <input id="building_area" type="number" min="15" max="3000" step="any" inputmode="decimal" required></label>
-          </div>
-          <div class="row">
-            <label>Bedrooms <input id="bedrooms" type="number" min="1" max="8" step="1" inputmode="numeric" required></label>
-            <label>Bathrooms <input id="bathrooms" type="number" min="1" max="8" step="1" inputmode="numeric" required></label>
-            <label>Floors <input id="floors" type="number" min="1" max="6" step="1" inputmode="numeric" placeholder="optional"></label>
-          </div>
-          <label>Notes <span class="optional">(optional)</span>
-            <textarea id="notes" rows="3" maxlength="2000" placeholder="Written like a listing, e.g. new, furnished, in a gated cluster, wide road"></textarea>
-          </label>
-          <p class="hint">Notes are read like a listing description and can move the estimate a lot. Keep them to facts about the house.</p>
-        </fieldset>
-        <details>
-          <summary>More details (optional)</summary>
-          <div class="row">
-            <label>Electricity (VA) <input id="electricity_va" type="number" min="450" max="40000" step="50" inputmode="numeric"></label>
-            <label>Carport spaces <input id="carport" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
-          </div>
-          <div class="row">
-            <label>Car access (cars) <input id="car_access" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
-            <label>Garage spaces <input id="garage" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
-            <label>Maid rooms <input id="maid_rooms" type="number" min="0" max="5" step="1" inputmode="numeric"></label>
-          </div>
-          <div class="row">
-            <label>Furnished
-              <select id="furnished_level"><option value="">unknown</option><option value="0">not furnished</option><option value="1">semi-furnished</option><option value="2">furnished</option></select>
-            </label>
-            <label>Water
-              <select id="water_pam"><option value="">unknown</option><option value="1">piped (PAM)</option><option value="0">groundwater</option></select>
-            </label>
-          </div>
-        </details>
-        <button type="submit" id="submit">Estimate price</button>
-      </form>
-      <div id="result" role="status" aria-live="polite"></div>
-    </section>
-    <section id="mapwrap" aria-label="Price map">
-      <div id="map"></div>
-      <div id="toggle" role="group" aria-label="Map view">
-        <button type="button" data-view="kecamatan" aria-pressed="true">Kecamatan</button>
-        <button type="button" data-view="h3" aria-pressed="false">Finer view (H3)</button>
+  <div id="map" aria-label="Peta harga rumah Jabodetabek"></div>
+  <noscript><p class="notice">Halaman ini memerlukan JavaScript untuk menampilkan peta dan perkiraan harga.</p></noscript>
+
+  <header id="bar">
+    <h1 class="brand">Harga Rumah <span>Jabodetabek</span></h1>
+    <form id="search" role="search" autocomplete="off">
+      <div class="field">
+        <svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m13 13 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Cari kecamatan atau alamat" aria-label="Cari kecamatan, alamat, atau tempat" role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list" maxlength="120">
+        <button type="submit" class="go">Cari</button>
       </div>
-      <div id="hover" aria-live="polite">Hover or tap an area to see its price.</div>
-      <div id="legend"></div>
-    </section>
-  </main>
-  <footer>
-    <details>
-      <summary>About this map and estimate</summary>
-      <p>The map shows the median asking price per m² of land, from about <span id="about-listings">4,000</span> house listings of an Indonesian property portal
-        (<span id="about-window"></span>). A price is shown only where an area has at least <span id="about-min">5</span> listings. Colours are equal-count classes,
-        so outer areas stay readable next to central Jakarta. An outlined kecamatan mixes premium and ordinary pockets, so its median is not one typical price.
-        No listing-level data is published.</p>
-      <p>The estimate is the mean of three models on location, size, rooms, nearby transport, road and land-use context, and the notes. It predicts an
-        <strong>asking price</strong>, not a sale price or a valuation. On listings the model never saw, half of the estimates were within <span id="about-error"></span>
-        of the asking price; the likely range held <span id="about-likely"></span> of them and the possible range <span id="about-possible"></span>. Plots over 300 m² are
-        harder to price and get wider ranges. Remote kecamatan have few listings, so estimates there are less certain.</p>
-      <p>Map data © OpenStreetMap contributors, © OpenMapTiles, served by OpenFreeMap. Boundaries: BIG. Flood hazard: BNPB InaRISK.
-        <a href="https://github.com/rlukafiardi/jabodetabek-house-price-showcase">Method, results and code</a>.</p>
+      <ul id="suggestions" role="listbox" hidden></ul>
+    </form>
+    <div id="views" role="group" aria-label="Tampilan peta">
+      <button type="button" data-view="kecamatan" aria-pressed="true">Per kecamatan</button>
+      <button type="button" data-view="h3" aria-pressed="false">Lebih rinci</button>
+    </div>
+    <button type="button" id="open-estimate" class="primary" aria-expanded="false" aria-controls="estimate">Hitung harga rumah</button>
+  </header>
+
+  <aside id="area" hidden aria-live="polite"></aside>
+
+  <section id="legend" aria-label="Legenda"></section>
+
+  <aside id="estimate" hidden aria-labelledby="estimate-title">
+    <div class="head">
+      <h2 id="estimate-title">Hitung harga rumah</h2>
+      <button type="button" id="close-estimate" class="icon" aria-label="Tutup">
+        <svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p class="hint" id="placement">Klik peta untuk menaruh pin di lokasi rumah, atau cari alamatnya di atas.</p>
+    <form id="form" novalidate>
+      <fieldset>
+        <legend>Lokasi</legend>
+        <div class="row">
+          <label>Lintang <input id="lat" type="number" step="any" min="-6.8" max="-5.9" inputmode="decimal" required></label>
+          <label>Bujur <input id="lon" type="number" step="any" min="106.4" max="107.3" inputmode="decimal" required></label>
+        </div>
+        <button type="button" id="locate" class="quiet">Pakai lokasi saya</button>
+      </fieldset>
+      <fieldset>
+        <legend>Rumah</legend>
+        <div class="row">
+          <label>Luas tanah (m²) <input id="land_area" type="number" min="15" max="5000" step="any" inputmode="decimal" required></label>
+          <label>Luas bangunan (m²) <input id="building_area" type="number" min="15" max="3000" step="any" inputmode="decimal" required></label>
+        </div>
+        <div class="row">
+          <label>Kamar tidur <input id="bedrooms" type="number" min="1" max="8" step="1" inputmode="numeric" required></label>
+          <label>Kamar mandi <input id="bathrooms" type="number" min="1" max="8" step="1" inputmode="numeric" required></label>
+          <label>Lantai <input id="floors" type="number" min="1" max="6" step="1" inputmode="numeric" placeholder="opsional"></label>
+        </div>
+        <label>Catatan <span class="optional">(opsional)</span>
+          <textarea id="notes" rows="3" maxlength="2000" placeholder="Tulis seperti iklan, mis. rumah baru, furnished, di dalam cluster, jalan lebar"></textarea>
+        </label>
+        <p class="hint">Catatan dibaca seperti deskripsi iklan dan bisa menggeser perkiraan cukup jauh. Isi dengan fakta tentang rumahnya.</p>
+      </fieldset>
+      <details>
+        <summary>Detail lain (opsional)</summary>
+        <div class="row">
+          <label>Daya listrik (VA) <input id="electricity_va" type="number" min="450" max="40000" step="50" inputmode="numeric"></label>
+          <label>Carport (mobil) <input id="carport" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
+        </div>
+        <div class="row">
+          <label>Akses mobil <input id="car_access" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
+          <label>Garasi (mobil) <input id="garage" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
+          <label>Kamar pembantu <input id="maid_rooms" type="number" min="0" max="5" step="1" inputmode="numeric"></label>
+        </div>
+        <div class="row">
+          <label>Furnitur
+            <select id="furnished_level"><option value="">tidak tahu</option><option value="0">tanpa furnitur</option><option value="1">semi furnished</option><option value="2">full furnished</option></select>
+          </label>
+          <label>Sumber air
+            <select id="water_pam"><option value="">tidak tahu</option><option value="1">PAM</option><option value="0">air tanah</option></select>
+          </label>
+        </div>
+      </details>
+      <button type="submit" id="submit" class="primary wide">Hitung harga</button>
+    </form>
+    <div id="result" role="status" aria-live="polite"></div>
+    <details class="about">
+      <summary>Tentang peta dan perkiraan ini</summary>
+      <p>Peta menampilkan median harga per m² tanah dari sekitar <span id="about-listings">4.000</span> iklan rumah dijual di sebuah portal properti Indonesia
+        (<span id="about-window"></span>). Harga hanya ditampilkan untuk area dengan minimal <span id="about-min">5</span> iklan. Warna dibagi ke tujuh kelas dengan jumlah
+        area yang sama, supaya daerah pinggiran tetap terbaca di samping Jakarta Pusat. Garis putus-putus menandai kecamatan dengan harga yang sangat beragam,
+        sehingga mediannya bukan satu harga tipikal. Tidak ada data per iklan yang dipublikasikan.</p>
+      <p>"Harga" di sini adalah harga yang diminta penjual di iklan, bukan harga transaksi dan bukan penilaian resmi. Perkiraan dihitung dari tiga model berdasarkan lokasi,
+        luas, jumlah kamar, jarak ke transportasi, jalan dan tata guna lahan sekitar, serta catatan. Pada iklan yang belum pernah dilihat model, separuh perkiraan meleset
+        kurang dari <span id="about-error"></span> dari harga iklannya; kisaran paling mungkin memuat <span id="about-likely"></span> harga sebenarnya dan kisaran lebar
+        <span id="about-possible"></span>. Tanah di atas 300 m² lebih sulit diperkirakan, dan kecamatan pinggiran punya sedikit iklan sehingga perkiraannya kurang pasti.</p>
+      <p>Data peta © kontributor OpenStreetMap, © OpenMapTiles lewat OpenFreeMap. Batas wilayah: BIG. Rawan banjir: BNPB InaRISK.
+        <a href="https://github.com/rlukafiardi/jabodetabek-house-price-showcase">Metode, hasil, dan kode</a>.</p>
     </details>
-  </footer>
+  </aside>
+
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous" defer></script>
   <script type="module" src="app.js"></script>
 </body>

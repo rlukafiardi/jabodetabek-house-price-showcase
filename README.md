@@ -8,14 +8,22 @@ and what a house like yours would ask, with an honest range around the number.
 ![Asking price per m² of land by kecamatan](reports/figures/price_map_kecamatan.png)
 
 ## The site
-A static page (MapLibre on a free OpenStreetMap-based basemap) shows the price map by kecamatan, with an H3 resolution-7 toggle for a
-finer view, and an estimate form that calls the model API. The map shows a price only where an area has at least 5 listings, uses
-equal-count colour classes and outlines kecamatan whose prices are mixed. The form returns a likely and a possible price range with the
-price per m² of land underneath, and warns where the model is weak. It works on a phone, and an end-to-end test in a real browser checks
-the map, the toggle, the click-to-place flow, the estimate and the refusals ([web/](web/)).
+A static page in Bahasa Indonesia (MapLibre on a free OpenStreetMap-based basemap, no build step). A full-screen map of the median price per m² of land by
+kecamatan, with a finer H3 view; one warm sand-to-deep-red ramp in seven equal-count classes; hatched areas where there are too few listings to show a
+price; dashed outlines where prices are mixed. The legend is interactive: point at a tier and everything else fades, so "where are the expensive areas" is
+answered without reading numbers. Selecting an area pins a card that compares its middle half of prices with the Jabodetabek median.
+
+Search matches kecamatan names while you type (from the map data itself) and looks up addresses and places only when you press Enter, through the free
+OpenStreetMap geocoder, whose policy forbids search-as-you-type: results are cached and requests are spaced at least a second apart. The estimate panel
+takes a pin from a click, a search result or the browser's location, calls the model API and shows the likely range, the wide range and the estimate on one
+bar, with the price per m² underneath and warnings translated from codes the API returns. A browser test drives all of this in real Chrome, including a
+phone ([web/](web/)).
 
 ![The site with an estimate](reports/figures/site_estimate.png)
 
+![Pointing at the top price tier](reports/figures/site_isolate.png)
+
+## Result
 ## Result
 On 562 listings the final model never saw (set aside before the final model was chosen, scored once):
 

@@ -69,13 +69,13 @@ class Estimator:
         for name, column in (("possible", ""), ("likely", "_50")):
             low, high = apply_range(np.array([price]), pd.Series([city]), self.bundle["ranges"], column, row.land_area)
             ranges[name] = [float(low[0]), float(high[0])]
-        warnings = []
+        warnings = []  # a code for the page to translate, and the English message for other clients
         if house.land_area > LARGE_PLOT_M2:
-            warnings.append(f"Plots over {LARGE_PLOT_M2} m² are priced less predictably, so the ranges are wider.")
+            warnings.append({"code": "large_plot", "message": f"Plots over {LARGE_PLOT_M2} m² are priced less predictably, so the ranges are wider."})
         if row.txt_take_over.iloc[0]:
-            warnings.append("Take-over (over kredit) listings quote a transfer fee, not the house value; this estimate does not apply to them.")
+            warnings.append({"code": "take_over", "message": "Take-over (over kredit) listings quote a transfer fee, not the house value; this estimate does not apply to them."})
         if row.txt_auction.iloc[0]:
-            warnings.append("Auction listings tend to ask less than the market price; the estimate may be too high.")
+            warnings.append({"code": "auction", "message": "Auction listings tend to ask less than the market price; the estimate may be too high."})
         return {"price_idr": round(price), "price_per_m2_land_idr": round(per_m2), "likely_range_idr": [round(v) for v in ranges["likely"]],
                 "possible_range_idr": [round(v) for v in ranges["possible"]],
                 "area": {"kecamatan": row.kecamatan.iloc[0], "city": city}, "text_score_used": bool(house.notes.strip()), "warnings": warnings}
