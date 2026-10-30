@@ -117,7 +117,7 @@ def create_app(estimator: Estimator | None = None) -> FastAPI:
     origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
     if origins:
         app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["content-type"])
-    limiter = RateLimiter(int(os.environ.get("RATE_LIMIT_PER_MINUTE", "30")), int(os.environ.get("GLOBAL_LIMIT_PER_MINUTE", "30")))  # 30 a minute is at most 1.3 million a month: under the free 2 million requests, and under 180,000 vCPU-seconds while a request takes under 0.13 s (see docs/deploy-security.md)
+    limiter = RateLimiter(int(os.environ.get("RATE_LIMIT_PER_MINUTE", "30")), int(os.environ.get("GLOBAL_LIMIT_PER_MINUTE", "12")))  # 12 a minute is at most 518,000 a month; at the 0.29 s a request takes on Cloud Run that is about 150,000 vCPU-seconds, under the free 180,000 (see docs/deploy-security.md)
     lock = threading.Lock()  # one estimate at a time: it takes about 50 ms and the spatial indexes are shared
 
     @app.exception_handler(RequestValidationError)

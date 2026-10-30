@@ -8,3 +8,8 @@
 /tests
 /.gcloud
 **/__pycache__
+/web
+/showcase
+**/node_modules
+**/.cloudflare*
+**/*.env
