@@ -281,3 +281,5 @@ summary { cursor: pointer; color: var(--accent); }
 .why li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .why li b.up { color: #8a3a12; }
 .why li b.down { color: #1b4f9c; }
+.unit-chips { display: flex; gap: 6px; margin: -2px 0 8px; }
+.unit-chips button { border: 1px solid #c9c3bb; border-radius: 999px; padding: 4px 12px; background: var(--panel); font-size: 13px; color: var(--accent); font-weight: 600; }

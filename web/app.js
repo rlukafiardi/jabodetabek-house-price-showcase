@@ -616,11 +616,11 @@ buildRank();
 // ---- check an ad price against the estimate
 function askBlock(r) {
   const form = el("form", "ask"), label = el("label", "", "Sudah lihat harga di iklan? Bandingkan di sini"), input = el("input");
-  input.type = "text"; input.inputMode = "decimal"; input.autocomplete = "off"; input.placeholder = "mis. 4,5 miliar atau 4500 juta"; input.maxLength = 30;
+  input.type = "text"; input.inputMode = "text"; input.enterKeyHint = "done"; input.autocomplete = "off"; input.placeholder = "mis. 4,5 miliar atau 4500 juta"; input.maxLength = 30; // a price is written with a unit word: it needs the full keyboard
   label.append(input);
   const go = el("button", "ghost", "Bandingkan"), out = el("div", "ask-out");
   go.type = "submit"; out.setAttribute("role", "status");
-  form.append(label, go, out);
+  form.append(label, unitChips(input), go, out);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const ask = parseRupiah(input.value), bar = form.closest(".card")?.querySelector(".range");
@@ -880,12 +880,12 @@ let budgetForm = { amount: "", land: "100", city: "" };
 function buildBudget() {
   const view = $("budget-view");
   const form = el("form", "budget-form"), amount = el("input"), land = el("input"), amountLabel = el("label", "", "Budget kamu"), landLabel = el("label", "", "Luas tanah yang dicari (m²)");
-  amount.type = "text"; amount.inputMode = "decimal"; amount.placeholder = "mis. 1,5 miliar"; amount.value = budgetForm.amount; amount.autocomplete = "off"; amount.maxLength = 30; amount.id = "budget-amount";
+  amount.type = "text"; amount.inputMode = "text"; amount.enterKeyHint = "done"; amount.placeholder = "mis. 1,5 miliar"; amount.value = budgetForm.amount; amount.autocomplete = "off"; amount.maxLength = 30; amount.id = "budget-amount";
   land.type = "number"; land.min = "15"; land.max = "5000"; land.step = "any"; land.value = budgetForm.land; land.id = "budget-land";
   amountLabel.append(amount); landLabel.append(land);
   const go = el("button", "primary wide", "Tampilkan di peta"), error = el("div", "ask-out bad");
   go.type = "submit"; error.setAttribute("role", "alert");
-  form.append(amountLabel, landLabel, go, error);
+  form.append(amountLabel, unitChips(amount), landLabel, go, error);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const value = parseRupiah(amount.value), area = Number(land.value);
@@ -928,3 +928,20 @@ function buildBudget() {
               el("p", "hint", `${count("none")} daerah belum ada harganya, jadi tidak dihitung.`));
 }
 buildBudget();
+
+// "juta" and "miliar" buttons under a price box: on a phone you can type the digits and tap the unit instead of switching keyboards
+function unitChips(input) {
+  const row = el("div", "unit-chips");
+  for (const unit of ["juta", "miliar"]) {
+    const button = el("button", "", unit);
+    button.type = "button";
+    button.setAttribute("aria-label", `Tambah satuan ${unit}`);
+    button.addEventListener("click", () => {
+      const digits = input.value.replace(/[^\d.,]/g, "").trim(); // keep the number, replace any unit already there
+      input.value = digits ? `${digits} ${unit}` : "";
+      input.focus();
+    });
+    row.append(button);
+  }
+  return row;
+}

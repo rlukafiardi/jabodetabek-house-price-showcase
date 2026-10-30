@@ -134,6 +134,7 @@ await page.click("#close-rank");
 // budget: a typed budget and land size light up the areas that fit and list them; a bare number asks for a unit; clearing restores the map
 await page.click("#open-rank");
 await page.click('#rank-tabs [data-tab="budget"]');
+assert.equal(await page.$eval("#budget-amount", (i) => i.inputMode), "text", "the budget box needs letters on a phone");
 await page.type("#budget-amount", "4500");
 await page.click("#budget-view .primary");
 assert.match(await text(page, "#budget-view .ask-out"), /satuan/);
@@ -235,6 +236,14 @@ assert.ok(factors.length >= 1 && factors.every((f) => /(naik|turun) \d+%$/.test(
 await shot(page, "5c-why");
 
 // check an ad price: a typed price is read and compared; a bare number asks for a unit
+// a price is typed with a unit word: the keyboard must be the full one (not decimal) and the unit buttons must work
+assert.equal(await page.$eval(".ask input", (i) => i.inputMode), "text", "the ad-price box needs letters on a phone");
+await page.type(".ask input", "4,6");
+await page.click('.ask .unit-chips button:nth-child(2)');
+assert.equal(await page.$eval(".ask input", (i) => i.value), "4,6 miliar");
+await page.click('.ask .unit-chips button:nth-child(1)');
+assert.equal(await page.$eval(".ask input", (i) => i.value), "4,6 juta", "a unit already there is replaced");
+await page.$eval(".ask input", (i) => { i.value = ""; });
 await page.type(".ask input", "4500");
 await page.click(".ask .ghost");
 assert.match(await text(page, "#result .ask-out"), /satuan/);
