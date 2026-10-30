@@ -1,0 +1,6 @@
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://tiles.openfreemap.org; font-src 'self' https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org https://nominatim.openstreetmap.org https://*.run.app; worker-src blob:; child-src blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()

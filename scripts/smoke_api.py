@@ -10,4 +10,5 @@ with TestClient(app) as client:
     print("model", client.get("/model").json())
     response = client.post("/estimate", json=house)
     print("estimate", response.status_code, response.json())
-    assert response.status_code == 200 and response.json()["price_idr"] > 1e9
+    assert response.status_code == 200 and response.json()["price_idr"] > 1e9 and response.json()["factors"]
+assert client.post("/estimate", json={**house, "lat": "NaN"}).status_code == 422  # a hostile input is a refusal, not a crash
