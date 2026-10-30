@@ -60,9 +60,21 @@ function hatch() {
   return ctx.getImageData(0, 0, size, size);
 }
 
+// flood hazard is drawn as blue stripes, denser for higher hazard, so the price colour stays readable underneath
+const floodHatch = [["#7fb4e3", 1.2], ["#3f84c8", 1.8], ["#12418a", 2.6]];
+function stripes(color, width, size = 8) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(size, size); ctx.moveTo(-size / 2, size / 2); ctx.lineTo(size / 2, size * 1.5); ctx.moveTo(size / 2, -size / 2); ctx.lineTo(size * 1.5, size / 2); ctx.stroke();
+  return ctx.getImageData(0, 0, size, size);
+}
+
 map.on("load", () => {
   const firstLabel = map.getStyle().layers.find((l) => l.type === "symbol")?.id; // place names of the basemap stay above the colours
   map.addImage("hatch", hatch());
+  floodHatch.forEach(([color, width], i) => map.addImage(`flood${i + 1}`, stripes(color, width)));
   map.addSource("kecamatan", { type: "geojson", data: kecamatan, promoteId: "code" });
   map.addSource("h3", { type: "geojson", data: h3, generateId: true });
   const fade = { "fill-opacity-transition": { duration: 250 } };
@@ -739,6 +751,8 @@ const LAYER_DEFS = [
   { key: "toll", group: "Transportasi", label: "Gerbang tol", swatches: [COLORS.toll], layers: [{ id: "toll", file: "layer_toll", type: "circle", poi: true, ...dot(8.5, 3, 4.5, 6, 8), color: COLORS.toll }] },
   { key: "rivers", group: "Lingkungan", label: "Sungai dan kanal", swatches: [COLORS.river], line: true, layers: [{ id: "rivers", file: "layer_rivers", type: "line", minzoom: 8.5,
     paint: { "line-color": COLORS.river, "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 2.6] } }] },
+  { key: "flood", group: "Lingkungan", label: "Rawan banjir (BNPB InaRISK)", swatches: ["#8fbfe8", "#3f84c8", "#12418a"], layers: [1, 2, 3].map((n) => (
+    { id: `f${n}`, file: "layer_flood", type: "fill", minzoom: 8.5, filter: ["==", ["get", "kind"], `flood${n}`], paint: { "fill-pattern": `flood${n}` } })) },
   place("mall", "Mal", "mall"), place("hospital", "Rumah sakit", "hospital"), place("university", "Kampus", "university"),
 ];
 const layerId = (def, layer) => `lyr-${def.key}-${layer.id}`;
@@ -751,7 +765,9 @@ function setLayer(def, on) {
       if (!map.getSource(l.file)) map.addSource(l.file, { type: "geojson", data: `data/${l.file}.geojson` });
       const spec = { id: layerId(def, l), type: l.type, source: l.file, ...(l.minzoom && { minzoom: l.minzoom }), ...(l.filter && { filter: l.filter }), ...(l.layout && { layout: l.layout }) };
       spec.paint = l.type === "circle" ? { ...l.paint, "circle-color": l.color } : l.paint;
-      map.addLayer(spec, "kecamatan-labels");
+      // an area layer goes under every point and line layer already on the map, so switching order never hides a station behind it
+      const below = l.type === "fill" ? map.getStyle().layers.find((x) => x.id.startsWith("lyr-"))?.id ?? "kecamatan-labels" : "kecamatan-labels";
+      map.addLayer(spec, below);
     }
   }
   for (const l of def.layers) if (map.getLayer(layerId(def, l))) map.setLayoutProperty(layerId(def, l), "visibility", on ? "visible" : "none");
@@ -782,6 +798,11 @@ function poiTip(props) {
     box.addEventListener("change", () => { if (!map.getLayer("kecamatan-labels")) { box.checked = false; return; } setLayer(def, box.checked); }); // the map is not ready yet
     body.append(chip);
   }
+  // the flood layer is a generalised copy of BNPB's data (published on the owner's decision, no terms found); the full map stays at the source
+  body.append(el("div", "group", "Sumber"));
+  const flood = el("a", "chip link", "Peta risiko banjir lengkap di InaRISK (BNPB) ↗");
+  flood.href = "https://inarisk.bnpb.go.id/"; flood.target = "_blank"; flood.rel = "noopener noreferrer";
+  body.append(flood);
 })();
 
 // ---- open a shared link: fill the form, drop the pin and run the estimate
