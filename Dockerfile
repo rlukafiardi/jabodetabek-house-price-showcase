@@ -14,4 +14,7 @@ COPY src ./src
 COPY serving/data ./data
 COPY serving/model ./model
 ENV MODEL_DIR=/app/model PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
-CMD ["sh", "-c", "uvicorn src.serving.api:app --host 0.0.0.0 --port ${PORT:-8080}"]
+RUN useradd --system --no-create-home api  # the service does not need root, and a bug in it should not get root
+USER api
+# one process, a bounded queue (503 beyond 20 waiting requests), no server banner
+CMD ["sh", "-c", "uvicorn src.serving.api:app --host 0.0.0.0 --port ${PORT:-8080} --limit-concurrency 20 --no-server-header"]

@@ -178,7 +178,7 @@ await page.click('#layers input[data-layer="flood"]');
 await page.waitForFunction(() => window.__map.getLayer("lyr-flood-flood") && window.__map.isSourceLoaded("layer_flood"), { timeout: 30000 });
 const order = await page.evaluate(() => window.__map.getStyle().layers.map((l) => l.id));
 assert.ok(order.indexOf("lyr-flood-flood") < order.indexOf("lyr-stations-stations"), "the flood image must sit under the station points");
-assert.match(await text(page, "#layers .layer-note"), /bukan pasti aman/);
+assert.match(await text(page, "#layers .layer-note"), /belum tentu aman/);
 await sleep(800);
 await shot(page, "3e-flood");
 await page.click('#layers input[data-layer="flood"]');
