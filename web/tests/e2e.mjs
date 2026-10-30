@@ -133,6 +133,7 @@ await page.click("#close-rank");
 
 // layers to consider: stations, rivers; hovering a station names it, tapping it does not move the pin
 await page.click("#layers .title");
+assert.equal(await page.$eval("#layers a.link", (a) => a.rel + " " + new URL(a.href).host), "noopener noreferrer inarisk.bnpb.go.id", "flood: a link out, not a copy of the data");
 await page.evaluate(() => window.__map.jumpTo({ center: [106.82, -6.2], zoom: 11.5 }));
 await page.click('#layers input[data-layer="stations"]');
 await page.click('#layers input[data-layer="rivers"]');
@@ -151,6 +152,13 @@ await page.waitForSelector(".maplibregl-popup.tip");
 assert.match(await text(page, ".maplibregl-popup.tip"), /Stasiun/);
 await page.mouse.click(mapBox.x + station.x, mapBox.y + station.y);
 assert.equal(await page.evaluate(() => JSON.stringify(window.__state.point)), pinBefore, "a click on a station must not move the pin");
+// flood hazard: drawn under the stations even when switched on last
+await page.click('#layers input[data-layer="flood"]');
+await page.waitForFunction(() => window.__map.queryRenderedFeatures({ layers: ["lyr-flood-f1", "lyr-flood-f2", "lyr-flood-f3"] }).length > 0, { timeout: 30000 });
+const order = await page.evaluate(() => window.__map.getStyle().layers.map((l) => l.id));
+assert.ok(order.indexOf("lyr-flood-f1") < order.indexOf("lyr-stations-stations"), "the flood area must sit under the station points");
+await shot(page, "3e-flood");
+await page.click('#layers input[data-layer="flood"]');
 await page.click('#layers input[data-layer="rivers"]');
 assert.equal(await page.evaluate(() => window.__map.getLayoutProperty("lyr-rivers-rivers", "visibility")), "none");
 await page.click("#layers .title");
