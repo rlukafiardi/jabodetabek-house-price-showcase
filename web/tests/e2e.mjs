@@ -16,7 +16,7 @@ const problems = [], geocoderCalls = [];
 async function open(viewport) {
   const page = await browser.newPage();
   await page.setViewport(viewport);
-  page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+  page.on("pageerror", (e) => { problems.push(`pageerror: ${e.message}`); console.error(`pageerror: ${e.message}`); });
   page.on("console", (m) => { if (m.type() === "error" && !/GL Driver|WebGL|ReadPixels|status of 422/.test(m.text())) problems.push(`console: ${m.text()}`); }); // the 422 is the refusal this test provokes
   page.on("requestfailed", (r) => { if (r.failure()?.errorText !== "net::ERR_ABORTED") problems.push(`request failed: ${r.url()} (${r.failure()?.errorText})`); }); // the map cancels tile downloads when the view jumps
   await page.setRequestInterception(true);
@@ -43,7 +43,19 @@ const page = await open({ width: 1400, height: 900 });
 assert.equal(await page.evaluate(() => document.documentElement.lang), "id");
 const visible = await page.evaluate(() => document.body.innerText);
 for (const english of ["Estimate", "Likely", "asking", "Search", "Hover", "Kecamatan:"]) assert.ok(!visible.includes(english), `English text on the page: ${english}`);
-assert.match(visible, /Hitung harga rumah/);
+assert.match(visible, /Coba Perkiraan Harga/);
+for (const formal of [" Anda", "saya", "Silakan", "diminta penjual"]) assert.ok(!visible.includes(formal), `formal wording: ${formal}`);
+assert.ok(!visible.includes("Harga Rumah Jabodetabek"), "the old title box is gone");
+
+// first visit: the welcome card explains the map and offers two ways in
+assert.equal(await page.$eval("#welcome", (n) => !n.hidden), true);
+assert.match(await text(page, "#welcome"), /Berapa harga rumah di sekitarmu\?/);
+await shot(page, "0-welcome");
+await page.click("#welcome-map");
+assert.equal(await page.$eval("#welcome", (n) => n.hidden), true);
+await page.click("#help");
+assert.equal(await page.$eval("#welcome", (n) => n.hidden), false, "the ? button brings the guide back");
+await page.click("#welcome-close");
 
 // price layers and the legend
 const layers = await page.evaluate(() => { const f = window.__map.queryRenderedFeatures({ layers: ["kecamatan-fill"] }); return { rendered: f.length, withPrice: f.filter((x) => x.properties.cls >= 0).length }; });
@@ -89,6 +101,60 @@ await page.click('#suggestions li[role="option"]');
 await page.waitForFunction(() => Math.abs(Number(document.getElementById("lat").value) + 6.1944) < 0.001);
 await page.waitForFunction(() => /Menteng/.test(document.getElementById("area").textContent), { timeout: 20000 });
 
+// ranking panel: filter by city, sort, click a row to fly there
+await page.click("#open-rank");
+await page.waitForSelector("#rank:not([hidden])");
+const all = await page.$$eval("#rank-list .rank-row", (r) => r.length);
+assert.ok(all > 100, `ranked areas: ${all}`);
+const cityOptions = await page.$$eval("#rank-city option", (o) => o.map((n) => n.value).filter(Boolean));
+assert.ok(cityOptions.length >= 10, `cities: ${cityOptions.length}`);
+await page.select("#rank-city", cityOptions.find((c) => /Bekasi/.test(c)));
+const bekasi = await page.$$eval("#rank-list .rank-row .val", (v) => v.map((n) => parseFloat(n.textContent.replace(",", "."))));
+assert.ok(bekasi.length > 3 && bekasi.length < all && bekasi.every((v, i) => i === 0 || v <= bekasi[i - 1]), `filtered, high to low: ${bekasi}`);
+await page.click('#rank-sort [data-sort="asc"]');
+const asc = await page.$$eval("#rank-list .rank-row .val", (v) => v.map((n) => parseFloat(n.textContent.replace(",", "."))));
+assert.ok(asc.every((v, i) => i === 0 || v >= asc[i - 1]), `low to high: ${asc}`);
+await shot(page, "3b-rank");
+const firstName = await page.$eval("#rank-list .rank-row b", (n) => n.textContent);
+// compare: pick two areas, read the table, a land size gives rough totals
+await page.click("#rank-list .rank-item:nth-child(1) .pick");
+await page.click("#rank-list .rank-item:nth-child(2) .pick");
+assert.equal(await text(page, "#compare-count"), "2");
+await page.click('#rank-tabs [data-tab="compare"]');
+assert.equal(await page.$$eval(".cmp-col", (n) => n.length), 2);
+assert.match(await text(page, ".cmp-verdict"), /paling murah, sekitar \d+% di bawah|hampir sama/); // the two cheapest Bekasi areas can tie
+await page.type(".cmp-land input", "100");
+assert.match(await text(page, ".cmp-total"), /Tanah 100 m² sekitar Rp/);
+await shot(page, "3c-compare");
+await page.click('#rank-tabs [data-tab="rank"]');
+await page.click("#rank-list .rank-row");
+await page.waitForFunction((n) => document.getElementById("area").textContent.includes(n), {}, firstName);
+await page.click("#close-rank");
+
+// layers to consider: stations, rivers; hovering a station names it, tapping it does not move the pin
+await page.click("#layers .title");
+await page.evaluate(() => window.__map.jumpTo({ center: [106.82, -6.2], zoom: 11.5 }));
+await page.click('#layers input[data-layer="stations"]');
+await page.click('#layers input[data-layer="rivers"]');
+await page.waitForFunction(() => window.__map.queryRenderedFeatures({ layers: ["lyr-stations-stations"] }).length > 5 && window.__map.queryRenderedFeatures({ layers: ["lyr-rivers-rivers"] }).length > 3, { timeout: 30000 });
+await shot(page, "3d-layers");
+const station = await page.evaluate(() => { // one in the clear middle of the screen, not under a card or the search bar
+  const pick = window.__map.queryRenderedFeatures({ layers: ["lyr-stations-stations"] }).map((f) => ({ p: window.__map.project(f.geometry.coordinates), name: f.properties.name }))
+    .find(({ p }) => p.x > 420 && p.x < 900 && p.y > 150 && p.y < 650);
+  return pick && { x: pick.p.x, y: pick.p.y, name: pick.name };
+});
+assert.ok(station, "a station in the open part of the map");
+const pinBefore = await page.evaluate(() => JSON.stringify(window.__state.point));
+const mapBox = await (await page.$("#map")).boundingBox();
+await page.mouse.move(mapBox.x + station.x, mapBox.y + station.y);
+await page.waitForSelector(".maplibregl-popup.tip");
+assert.match(await text(page, ".maplibregl-popup.tip"), /Stasiun/);
+await page.mouse.click(mapBox.x + station.x, mapBox.y + station.y);
+assert.equal(await page.evaluate(() => JSON.stringify(window.__state.point)), pinBefore, "a click on a station must not move the pin");
+await page.click('#layers input[data-layer="rivers"]');
+assert.equal(await page.evaluate(() => window.__map.getLayoutProperty("lyr-rivers-rivers", "visibility")), "none");
+await page.click("#layers .title");
+
 // the finer view (back to the whole region first: the search flew to street level)
 await page.evaluate(() => window.__map.jumpTo({ center: [106.85, -6.37], zoom: 9.3 }));
 await page.click('#views [data-view="h3"]');
@@ -109,21 +175,62 @@ const where = await page.evaluate(() => { const p = window.__map.project([106.81
 await page.mouse.click(box.x + where.x, box.y + where.y);
 await sleep(600);
 assert.ok(Math.abs(Number(await page.$eval("#lat", (i) => i.value)) + 6.2615) < 0.02);
+assert.equal(await page.$eval("#next1", (b) => b.disabled), false);
+assert.match(await text(page, "#picked"), /Lokasi dipilih: Kebayoran Baru/);
+await page.click("#next1");
+await page.waitForSelector('.step[data-step="2"]:not([hidden])');
+await shot(page, "5a-step2");
+// impossible numbers: the minus key is blocked, a pasted -3 is flagged in Indonesian and blocks the form
+await page.type("#bedrooms", "-1");
+assert.equal(await page.$eval("#bedrooms", (i) => i.value), "1", "the minus must not be typed");
+await page.$eval("#bedrooms", (i) => { i.value = "-3"; i.dispatchEvent(new Event("input", { bubbles: true })); });
+assert.match(await page.$eval("#bedrooms", (i) => i.closest(".f").querySelector(".err").textContent), /Isi angka 1 sampai 8/);
+assert.equal(await page.$eval("#form", (f) => f.checkValidity()), false);
+await page.$eval("#bedrooms", (i) => { i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); });
 await page.type("#land_area", "150"); await page.type("#building_area", "200"); await page.type("#bedrooms", "4"); await page.type("#bathrooms", "3");
 await page.type("#notes", "rumah mewah cluster");
 await page.click("#submit");
 await page.waitForFunction(() => document.querySelector("#result .big"), { timeout: 90000 });
 const result = await text(page, "#result");
-assert.match(result, /Kisaran harga paling mungkin/); assert.match(result, /Rp \d+,\d+ – \d+,\d+ miliar/); assert.match(result, /Kebayoran Baru/); assert.match(result, /kisaran lebar \(80%\)/);
+assert.match(result, /Perkiraan harga/); assert.match(result, /Rp \d+,\d+ – \d+,\d+ miliar/); assert.match(result, /Kebayoran Baru/); assert.match(result, /Biasanya dijual antara/); assert.match(result, /bisa juga sampai di sini/);
+assert.equal(await page.$eval("#form", (f) => f.hidden), true, "the result is its own step");
 await sleep(1200);
 await shot(page, "5-estimate");
 
+// check an ad price: a typed price is read and compared; a bare number asks for a unit
+await page.type(".ask input", "4500");
+await page.click(".ask .ghost");
+assert.match(await text(page, ".ask-out"), /satuan/);
+await page.$eval(".ask input", (i) => { i.value = ""; });
+await page.type(".ask input", "4,6 miliar");
+await page.click(".ask .ghost");
+assert.match(await text(page, ".ask-out"), /Harga iklan ini .*perkiraan/);
+await shot(page, "5b-ask");
+
+// share: the link carries the form and opens the same estimate on a fresh page
+await page.evaluate(() => { Object.defineProperty(navigator, "share", { value: undefined, configurable: true }); navigator.clipboard.writeText = async (t) => { window.__copied = t; }; });
+await page.click(".card .share");
+await page.waitForFunction(() => window.__copied);
+const link = await page.evaluate(() => window.__copied);
+assert.match(link, /\?lat=-6\.\d+&lon=106\.\d+&lt=150&lb=200&kt=4&km=3/);
+assert.ok(!link.includes("api="), "the link must not carry the test's API override");
+const sharedPage = await open({ width: 1400, height: 900 });
+await sharedPage.goto(`${link}&api=http://localhost:8080`, { waitUntil: "networkidle2", timeout: 60000 });
+await sharedPage.waitForFunction(() => document.querySelector("#result .big"), { timeout: 90000 });
+assert.equal(await sharedPage.$eval("#land_area", (i) => i.value), "150");
+assert.equal(await sharedPage.$eval("#welcome", (n) => n.hidden), true, "a shared link skips the welcome card");
+assert.match(await text(sharedPage, "#result"), /Rp \d+,\d+ – \d+,\d+ miliar/);
+await sharedPage.close();
+
 // refusals: the form stops coordinates outside the area; a point in the sea is refused by the API in Indonesian
+await page.click("#result .actions .ghost"); // "Ubah data" returns to step 2
+await page.click('#steps [data-step="1"]');
+await page.$eval("details.coords", (d) => { d.open = true; });
 await page.$eval("#lat", (i) => { i.value = ""; }); await page.type("#lat", "-6.85");
 assert.equal(await page.$eval("#lat", (i) => i.validity.valid), false);
 await page.$eval("#lat", (i) => { i.value = ""; }); await page.type("#lat", "-5.95");
 await page.$eval("#lon", (i) => { i.value = ""; }); await page.type("#lon", "106.5");
-await page.click("#submit");
+await page.evaluate(() => document.getElementById("form").requestSubmit());
 await page.waitForFunction(() => /di luar wilayah Jabodetabek/.test(document.querySelector("#result")?.textContent ?? ""), { timeout: 30000 })
   .catch(async () => assert.fail(`no refusal message; result shows: ${await text(page, "#result")}`));
 
@@ -133,8 +240,13 @@ const layout = await phone.evaluate(() => ({ scroll: document.documentElement.sc
 assert.equal(layout.scroll, layout.inner, `horizontal overflow: ${JSON.stringify(layout)}`);
 assert.equal(layout.legendCollapsed, true);
 await shot(phone, "6-phone");
+await phone.click("#help");
+assert.equal(await phone.$eval("#open-estimate", (b) => getComputedStyle(b).display), "none", "the welcome sheet replaces the bottom button");
+await shot(phone, "6-phone-welcome");
+await phone.click("#welcome-map");
 await phone.click("#open-estimate");
 await sleep(500);
+assert.equal(await phone.$eval("#open-estimate", (b) => getComputedStyle(b).display), "none", "an open sheet is not covered by the bottom button");
 const sheet = await phone.$eval("#estimate", (n) => { const r = n.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, inner: window.innerHeight }; });
 assert.ok(sheet.top >= 0 && sheet.bottom <= sheet.inner + 1, `the estimate sheet does not fit: ${JSON.stringify(sheet)}`);
 await shot(phone, "7-phone-estimate");

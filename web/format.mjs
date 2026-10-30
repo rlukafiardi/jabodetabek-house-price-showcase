@@ -41,16 +41,16 @@ export function classLabels(edges) {
   return [`di bawah ${n(edges[1])}`, ...inner, `${n(edges[edges.length - 2])} ke atas`];
 }
 
-/** How far a price is from a reference, in words: "37% di atas median Jabodetabek". */
+/** How far a price is from a reference, in words: "37% di atas harga umum Jabodetabek". */
 export function versusMedian(value, median) {
   const diff = Math.round((value / median - 1) * 100);
-  if (value / median >= 2) return `${num(value / median, 1)}× median Jabodetabek`;
-  if (Math.abs(diff) < 3) return "setara dengan median Jabodetabek";
-  return `${Math.abs(diff)}% ${diff > 0 ? "di atas" : "di bawah"} median Jabodetabek`;
+  if (value / median >= 2) return `${num(value / median, 1)}× harga umum Jabodetabek`;
+  if (Math.abs(diff) < 3) return "setara dengan harga umum Jabodetabek";
+  return `${Math.abs(diff)}% ${diff > 0 ? "di atas" : "di bawah"} harga umum Jabodetabek`;
 }
 
 const FIELDS = { lat: "lintang", lon: "bujur", land_area: "luas tanah", building_area: "luas bangunan", bedrooms: "jumlah kamar tidur", bathrooms: "jumlah kamar mandi",
-  floors: "jumlah lantai", notes: "catatan", electricity_va: "daya listrik", carport: "carport", car_access: "akses mobil", garage: "garasi", maid_rooms: "kamar pembantu",
+  floors: "jumlah lantai", notes: "catatan", electricity_va: "daya listrik", carport: "carport", car_access: "jalan depan muat (mobil)", garage: "garasi", maid_rooms: "kamar ART",
   furnished_level: "kondisi furnitur", water_pam: "sumber air" };
 
 /** A readable message in Indonesian from an API error (FastAPI sends a code object, a list of validation errors, or a status). */
@@ -62,7 +62,7 @@ export function errorMessage(status, body) {
     const first = detail[0];
     const field = Array.isArray(first.loc) ? first.loc.filter((p) => p !== "body" && p !== "specs").pop() : undefined;
     const label = FIELDS[field] ?? "isian";
-    if (first.type === "missing") return `Isi ${label} terlebih dahulu.`;
+    if (first.type === "missing") return `Isi ${label} dulu.`;
     if (first.type?.startsWith("greater_than")) return `${label[0].toUpperCase()}${label.slice(1)} minimal ${num(first.ctx?.ge ?? first.ctx?.gt)}.`;
     if (first.type?.startsWith("less_than")) return `${label[0].toUpperCase()}${label.slice(1)} maksimal ${num(first.ctx?.le ?? first.ctx?.lt)}.`;
     if (first.type === "string_too_long") return "Catatan terlalu panjang (maksimal 2.000 karakter).";
@@ -77,3 +77,36 @@ export const WARNINGS = {
   take_over: "Rumah take over (over kredit) dijual dengan biaya pengalihan, bukan harga rumahnya. Estimasi ini tidak berlaku untuk rumah seperti itu.",
   auction: "Rumah lelang biasanya dijual di bawah harga pasar, jadi estimasi ini bisa terlalu tinggi.",
 };
+
+const UNITS = [[/^(miliar|milyar|m)$/, 1e9], [/^(juta|jt)$/, 1e6], [/^(ribu|rb)$/, 1e3]];
+
+/** A price typed the way people write it ("4,5 miliar", "4500 juta", "Rp 4.500.000.000") in rupiah, or NaN when it cannot be read. */
+export function parseRupiah(text) {
+  const match = String(text).toLowerCase().replace(/rp\.?/g, "").trim().match(/^([\d.,]+)\s*([a-z]*)$/);
+  if (!match) return NaN;
+  const [, digits, word] = match, unit = word ? UNITS.find(([re]) => re.test(word))?.[1] : 1;
+  if (!unit) return NaN;
+  const parts = digits.split(/[.,]/), last = parts[parts.length - 1];
+  const decimal = unit > 1 && parts.length === 2 && last.length <= 2; // "4,5" is 4.5 with a unit; "4.500" is 4500
+  const value = decimal ? Number(`${parts[0]}.${last}`) : Number(parts.join(""));
+  if (!Number.isFinite(value)) return NaN;
+  const rupiah = value * unit;
+  if (unit === 1 && rupiah < 1e6) return NaN; // "4500" alone is ambiguous: ask for a unit
+  return rupiah >= 1e7 && rupiah <= 1e12 ? rupiah : NaN;
+}
+
+/** How an ad price compares with the estimate: the share above or below, and where it sits against the two ranges. */
+export function compareAsk(ask, estimate) {
+  const diff = Math.round((ask / estimate.price_idr - 1) * 100), size = Math.abs(diff);
+  const [low, high] = estimate.likely_range_idr, [wideLow, wideHigh] = estimate.possible_range_idr;
+  const where = ask < wideLow ? "below" : ask > wideHigh ? "above" : ask < low ? "below-likely" : ask > high ? "above-likely" : "inside";
+  const how = size < 3 ? "sekitar sama dengan perkiraan" : `${size}% ${diff > 0 ? "di atas" : "di bawah"} perkiraan`;
+  const text = {
+    inside: `Harga iklan ini ${how}, masih di rentang biasanya.`,
+    "above-likely": `Harga iklan ini ${how}. Di atas rentang biasanya, tapi masih mungkin. Coba nego, atau cek apa yang bikin rumahnya lebih mahal.`,
+    "below-likely": `Harga iklan ini ${how}. Di bawah rentang biasanya, tapi masih mungkin. Cek kondisi rumah dan suratnya.`,
+    above: `Harga iklan ini ${how}, jauh di atas rentang. Bisa jadi rumahnya memang istimewa, atau harganya ketinggian.`,
+    below: `Harga iklan ini ${how}, jauh di bawah rentang. Cek lagi data rumahnya, dan cari tahu kenapa semurah itu (kondisi, surat, over kredit).`,
+  }[where];
+  return { diff, where, text };
+}
