@@ -747,7 +747,7 @@ const LAYER_DEFS = [
   { key: "rivers", group: "Lingkungan", label: "Sungai dan kanal", swatches: [COLORS.river], line: true, layers: [{ id: "rivers", file: "layer_rivers", type: "line", minzoom: 8.5,
     paint: { "line-color": COLORS.river, "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 2.6] } }] },
   { key: "flood", group: "Lingkungan", label: "Rawan banjir (BNPB InaRISK)", swatches: ["#9ecae1", "#4f93d1", "#12418a"],
-    note: "Biru muda: rendah, biru: sedang, biru tua: tinggi. Tiga tingkat ini kami bagi sendiri dari indeks 0–1 milik BNPB, ketelitian sekitar 30 m. Area tanpa warna berarti tidak ditandai rawan di data BNPB, bukan pasti aman.",
+    note: "Makin tua birunya, makin rawan banjir. Data dari BNPB (InaRISK), detail sampai sekitar 30 m. Tingkat rendah, sedang, dan tinggi dikelompokkan dari skor 0–1 BNPB, bukan kategori resmi. Area tanpa warna = tidak tercatat rawan, belum tentu aman.",
     layers: [{ id: "flood", image: "layer_flood", type: "raster", minzoom: 8.5, paint: { "raster-opacity": 1 } }] },
   place("mall", "Mal", "mall"), place("hospital", "Rumah sakit", "hospital"), place("university", "Kampus", "university"),
 ];
