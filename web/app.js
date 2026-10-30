@@ -1,5 +1,6 @@
 import { CONFIG } from "./config.js";
-import { classLabels, edgeLabel, errorMessage, millions, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "./format.mjs";
+import { classLabels, compareAsk, edgeLabel, errorMessage, millions, parseRupiah, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "./format.mjs";
+import { readShared, shareQuery } from "./share.mjs";
 import { BBOX, geocoderUrl, matchAreas, parsePlaces } from "./search.mjs";
 
 const STYLE = "https://tiles.openfreemap.org/styles/positron";
@@ -27,15 +28,14 @@ const labels = classLabels(meta.edges);
 const readableOn = (hex) => (parseInt(hex.slice(1, 3), 16) * 0.299 + parseInt(hex.slice(3, 5), 16) * 0.587 + parseInt(hex.slice(5, 7), 16) * 0.114 > 150 ? "#1c1a18" : "#ffffff");
 const classOf = (millionsPerM2) => meta.edges.slice(1, -1).filter((e) => millionsPerM2 >= e).length;
 
-const state = { view: "kecamatan", point: null, marker: null, hovered: null, selected: null, isolated: null, locked: null, estimateOpen: false };
+const shared = readShared(location.search); // a link someone sent: the same estimate opens
+const state = { view: "kecamatan", point: null, marker: null, hovered: null, selected: null, isolated: null, locked: null, estimateOpen: false, step: 1 };
 
 // ---- the text of "about" from the data's own numbers
 $("about-listings").textContent = meta.listings_total.toLocaleString("id-ID");
 $("about-window").textContent = `${meta.listings_from} sampai ${meta.listings_to}`;
 $("about-min").textContent = meta.min_listings;
 $("about-error").textContent = pct(meta.model.holdout_median_error);
-$("about-likely").textContent = pct(meta.model.coverage_likely);
-$("about-possible").textContent = pct(meta.model.coverage_possible);
 
 // ---- map
 const map = new maplibregl.Map({ container: "map", style: STYLE, bounds: [[106.35, -6.80], [107.30, -5.95]], fitBoundsOptions: { padding: isPhone() ? { top: 130, left: 12, right: 12, bottom: 110 } : { top: 70, left: 20, right: 20, bottom: 20 } },
@@ -96,6 +96,8 @@ function tipContent(props) {
 
 function wireHover(layer, source) {
   map.on("mousemove", layer, (e) => {
+    const poi = poiAt(e.point);
+    if (poi) { tip.setLngLat(poi.geometry.coordinates).setDOMContent(poiTip(poi.properties)).addTo(map); map.getCanvas().style.cursor = "pointer"; return; }
     const feature = e.features[0];
     if (!feature || sourceName() !== source) return;
     if (state.hovered?.id !== feature.id) {
@@ -115,6 +117,8 @@ function wireHover(layer, source) {
 }
 
 function onMapClick(e) {
+  const poi = poiAt(e.point);
+  if (poi) return void tip.setLngLat(poi.geometry.coordinates).setDOMContent(poiTip(poi.properties)).addTo(map); // a tap on a station shows its name, it does not move the pin
   setPoint(e.lngLat.lat, e.lngLat.lng);
   const feature = map.queryRenderedFeatures(e.point, { layers: [fillLayer()] })[0];
   if (feature) selectArea(feature.id, sourceName(), feature.properties);
@@ -130,11 +134,11 @@ function track(props) {
   band.style.left = at(props.p25); band.style.width = `calc(${at(props.p75)} - ${at(props.p25)})`; band.style.setProperty("--c", meta.colors[props.cls]);
   const med = el("span", "tick"), ref = el("span", "tick ref");
   med.style.left = at(props.median); ref.style.left = at(o.median);
-  const capArea = el("span", `cap you${side(props.median)}`, `median ${millions(props.median)}`), capRef = el("span", `cap above${side(o.median)}`, `Jabodetabek ${millions(o.median)}`);
+  const capArea = el("span", `cap you${side(props.median)}`, `di sini ${millions(props.median)}`), capRef = el("span", `cap above${side(o.median)}`, `Jabodetabek ${millions(o.median)}`);
   capArea.style.left = at(props.median); capRef.style.left = at(o.median);
   box.append(el("span", "rail"), band, ref, med, capRef, capArea);
   box.setAttribute("role", "img");
-  box.setAttribute("aria-label", `Separuh iklan berharga ${millions(props.p25)} sampai ${millions(props.p75)} juta per m². Median Jabodetabek ${millions(o.median)} juta.`);
+  box.setAttribute("aria-label", `Kisaran harga yang umum ${millions(props.p25)} sampai ${millions(props.p75)} juta per m². Harga umum Jabodetabek ${millions(o.median)} juta.`);
   return box;
 }
 
@@ -151,17 +155,24 @@ function renderArea(props, source) {
   top.append(heading, close);
   card.replaceChildren(top);
   if (props.cls >= 0) {
-    const price = el("div", "price", `Rp ${millions(props.median)} juta `);
-    price.append(el("small", "", "per m² tanah (median)"));
+    const price = el("div", "price", `Rp ${millions(props.median)} juta`);
+    price.append(el("small", "", "per m² tanah · harga umum di sini"));
     card.append(price, el("div", "versus", versusMedian(props.median, meta.overall.median)), track(props));
-    card.append(el("p", "note", `Dari ${props.n} iklan. Separuh rumah berharga Rp ${millions(props.p25)} – ${millions(props.p75)} juta per m².`));
-    if (props.mixed) card.append(el("p", "note warn", "Harga di sini sangat beragam (ada kawasan premium dan kawasan biasa), jadi median bukan satu harga tipikal."));
+    card.append(el("p", "note", `Dari ${props.n} iklan. Kisaran harga yang umum: Rp ${millions(props.p25)} – ${millions(props.p75)} juta per m².`));
+    if (props.mixed) card.append(el("p", "note warn", "Harga di sini sangat bervariasi (ada kawasan mewah dan kawasan biasa), jadi angka ini hanya gambaran kasar."));
   } else {
     card.append(el("div", "price", "Belum ada harga"),
-                el("p", "note", `Baru ${props.n} ${props.n === 1 ? "iklan" : "iklan"} di sini, belum cukup untuk menampilkan harga (minimal ${meta.min_listings}).`));
+                el("p", "note", `Baru ${props.n} iklan di sini, belum cukup untuk menampilkan harga (minimal ${meta.min_listings}).`));
+  }
+  if (source === "kecamatan" && props.cls >= 0) {
+    const inList = compare.includes(props.code), full = compare.length >= MAX_COMPARE && !inList;
+    const add = el("button", "ghost wide", inList ? "Lihat perbandingan" : full ? `Perbandingan penuh (${MAX_COMPARE} daerah)` : "Bandingkan dengan daerah lain");
+    add.type = "button"; add.disabled = full;
+    add.addEventListener("click", () => { addCompare(props.code); openRank("compare"); renderArea(props, source); });
+    card.append(add);
   }
   if (state.point) {
-    const cta = el("button", "primary cta wide", "Hitung harga rumah di titik ini");
+    const cta = el("button", "primary cta wide", "Perkirakan harga rumah di titik ini");
     cta.addEventListener("click", () => openEstimate());
     card.append(cta);
   }
@@ -169,6 +180,7 @@ function renderArea(props, source) {
 }
 
 function selectArea(id, source, props) {
+  dismissWelcome();
   if (state.selected) map.setFeatureState(state.selected, { selected: false });
   state.selected = { source, id };
   map.setFeatureState(state.selected, { selected: true });
@@ -200,12 +212,12 @@ function buildLegend() {
   const unit = state.view === "h3" ? "area" : "kecamatan";
   const head = el("button", "title");
   head.type = "button";
-  head.append(el("span", "", "Median harga per m² tanah (juta Rp)"));
+  head.append(el("span", "", "Harga umum per m² tanah (juta Rp)"));
   head.insertAdjacentHTML("beforeend", '<svg aria-hidden="true" viewBox="0 0 12 12" width="12" height="12"><path d="m2 4 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>');
   head.addEventListener("click", () => { const c = legend.classList.toggle("collapsed"); head.setAttribute("aria-expanded", String(!c)); });
   const body = el("div", "body"), ramp = el("div", "ramp"), ticks = el("div", "ticks"), keys = el("div", "keys");
   meta.colors.forEach((color, i) => {
-    const seg = el("button", "seg", String(counts[i]));
+    const seg = el("button", "seg", "");
     seg.type = "button";
     seg.style.setProperty("--c", color); seg.style.setProperty("--fg", readableOn(color));
     seg.setAttribute("aria-pressed", "false");
@@ -219,10 +231,12 @@ function buildLegend() {
     ramp.append(seg);
   });
   meta.edges.slice(1, -1).forEach((edge, i) => { const t = el("span", "", edgeLabel(edge)); t.style.left = `${((i + 1) / meta.classes) * 100}%`; ticks.append(t); });
-  const nodataKey = el("span"); nodataKey.append(el("i", "swatch nodata"), document.createTextNode(`tanpa harga (kurang dari ${meta.min_listings} iklan)${state.view === "h3" ? "" : `: ${nodata}`}`));
-  const mixedKey = el("span"); mixedKey.append(el("i", "swatch mixed"), document.createTextNode("garis putus-putus: harga beragam"));
+  const nodataKey = el("span"); nodataKey.append(el("i", "swatch nodata"), document.createTextNode(`belum ada harga (iklan terlalu sedikit)${state.view === "h3" ? "" : `: ${nodata}`}`));
+  const mixedKey = el("span"); mixedKey.append(el("i", "swatch mixed"), document.createTextNode("garis putus-putus: harga sangat bervariasi"));
   keys.append(...(state.view === "h3" ? [] : [nodataKey, mixedKey]));
-  body.append(ramp, ticks, keys);
+  const ends = el("div", "ends");
+  ends.append(el("span", "", "Lebih murah"), el("span", "", "Lebih mahal"));
+  body.append(ramp, ticks, ends, keys);
   legend.replaceChildren(head, body);
   const collapsed = legend.dataset.init ? legend.classList.contains("collapsed") : isPhone();
   legend.dataset.init = "1";
@@ -247,6 +261,23 @@ $("views").addEventListener("click", (e) => {
   buildLegend();
 });
 
+// ---- welcome card: a first-visit guide, reopened by the "?" button
+const welcome = $("welcome");
+const store = { get() { try { return localStorage.getItem("welcome-seen") === "1"; } catch { return false; } }, set() { try { localStorage.setItem("welcome-seen", "1"); } catch { /* private window: it shows again next visit */ } } };
+function showWelcome(on) {
+  welcome.hidden = !on;
+  $("help").setAttribute("aria-expanded", String(on));
+  document.body.classList.toggle("welcoming", on);
+  if (!on) store.set();
+}
+function dismissWelcome() { if (!welcome.hidden) showWelcome(false); }
+$("welcome-ramp").append(...meta.colors.map((c) => { const i = el("i"); i.style.background = c; return i; }));
+$("welcome-close").addEventListener("click", dismissWelcome);
+$("welcome-map").addEventListener("click", dismissWelcome);
+$("welcome-estimate").addEventListener("click", () => { dismissWelcome(); openEstimate(); });
+$("help").addEventListener("click", () => showWelcome(welcome.hidden));
+if (!store.get() && !shared) showWelcome(true);
+
 // ---- the pin
 function setPoint(lat, lon) {
   state.point = { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) };
@@ -259,6 +290,11 @@ function setPoint(lat, lon) {
   } else {
     state.marker.setLngLat([lon, lat]);
   }
+  const under = map.getLayer("kecamatan-fill") && map.getLayoutProperty("kecamatan-fill", "visibility") !== "none"
+    ? map.queryRenderedFeatures(map.project([lon, lat]), { layers: ["kecamatan-fill"] })[0]?.properties : null;
+  $("picked").textContent = under ? `Lokasi dipilih: ${under.name}${under.city ? `, ${under.city}` : ""}` : "Lokasi dipilih di peta";
+  $("picked").classList.add("done");
+  $("next1").disabled = false;
 }
 function selectUnder(lon, lat) {
   const feature = map.queryRenderedFeatures(map.project([lon, lat]), { layers: [fillLayer()] })[0];
@@ -320,7 +356,7 @@ function goToArea(code) {
   if (!feature) return;
   if (state.view !== "kecamatan") document.querySelector('#views [data-view="kecamatan"]').click();
   input.value = feature.properties.name;
-  map.fitBounds(bboxOf(feature), { padding: { top: 90, left: isPhone() ? 20 : 380, right: 40, bottom: isPhone() ? 260 : 60 }, maxZoom: 13.5, duration: 900 });
+  map.fitBounds(bboxOf(feature), { padding: { top: 90, left: isPhone() ? 20 : 380, right: !isPhone() && !$("rank").hidden ? 420 : 40, bottom: isPhone() ? 260 : 60 }, maxZoom: 13.5, duration: 900 });
   selectArea(code, "kecamatan", feature.properties);
 }
 
@@ -373,9 +409,37 @@ function fitPadding() {
   if (!state.estimateOpen) return map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 300 });
   map.easeTo({ padding: isPhone() ? { top: 110, bottom: Math.round(window.innerHeight * 0.6), left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 410 }, duration: 300 });
 }
+const syncPanels = () => document.body.classList.toggle("panel-open", state.estimateOpen || !$("rank").hidden);
+function showStep(n) {
+  state.step = n;
+  document.querySelectorAll("#form .step").forEach((section) => { section.hidden = Number(section.dataset.step) !== n; });
+  $("form").hidden = n === 3;
+  document.querySelectorAll("#steps button").forEach((b) => {
+    const k = Number(b.dataset.step);
+    b.setAttribute("aria-current", String(k === n));
+    b.classList.toggle("done", k < n);
+    b.disabled = k === 3 && !$("result").querySelector(".card:not(.error)");
+  });
+  $("estimate").scrollTop = 0;
+}
+$("steps").addEventListener("click", (e) => { const k = Number(e.target.dataset?.step); if (k && (k === 1 || state.point)) showStep(k); });
+$("next1").addEventListener("click", () => showStep(2));
+$("back2").addEventListener("click", () => showStep(1));
+// a field that fails in a hidden step or a closed fold cannot be focused: go to it
+$("form").addEventListener("invalid", (e) => {
+  if (e.target.validity.valueMissing) e.target.setCustomValidity("Isi dulu.");
+  showFieldError(e.target, e.target.validationMessage);
+  const section = e.target.closest(".step"), fold = e.target.closest("details");
+  if (fold) fold.open = true;
+  if (section && Number(section.dataset.step) !== state.step) showStep(Number(section.dataset.step));
+}, true);
+
 function openEstimate() {
+  dismissWelcome();
+  closeRank();
   state.estimateOpen = true;
   $("estimate").hidden = false;
+  syncPanels();
   $("open-estimate").setAttribute("aria-expanded", "true");
   if (isPhone()) $("area").hidden = true;
   fitPadding();
@@ -383,9 +447,11 @@ function openEstimate() {
 function closeEstimate() {
   state.estimateOpen = false;
   $("estimate").hidden = true;
+  syncPanels();
   $("open-estimate").setAttribute("aria-expanded", "false");
   fitPadding();
 }
+showStep(1);
 $("open-estimate").addEventListener("click", () => (state.estimateOpen ? closeEstimate() : openEstimate()));
 $("close-estimate").addEventListener("click", closeEstimate);
 
@@ -411,60 +477,351 @@ function rangeBar(r) {
   likely.style.left = at(low); likely.style.width = `calc(${at(high)} - ${at(low)})`;
   likely.style.setProperty("--c", meta.colors[Math.min(classOf(r.price_per_m2_land_idr / 1e6), meta.classes - 1)]);
   point.style.left = at(r.price_idr);
-  const top = el("span", "top-cap", `perkiraan ${rp(r.price_idr)}`);
+  const top = el("span", "top-cap", "perkiraan");
   top.style.left = at(r.price_idr);
   const capL = el("span", "cap", rp(wideLow)), capR = el("span", "cap right", rp(wideHigh));
   capL.style.left = at(wideLow); capR.style.left = at(wideHigh);
   box.append(el("span", "rail"), wide, likely, point, top, capL, capR);
+  box.dataset.min = min; box.dataset.max = max;
   box.setAttribute("role", "img");
-  box.setAttribute("aria-label", `Kisaran paling mungkin ${rpRange(low, high)}, kisaran lebar ${rpRange(wideLow, wideHigh)}, perkiraan ${rp(r.price_idr)}.`);
+  box.setAttribute("aria-label", `Biasanya antara ${rpRange(low, high)}, bisa juga antara ${rpRange(wideLow, wideHigh)}, perkiraan ${rp(r.price_idr)}.`);
   return box;
 }
 
 function resultCard(r, landArea) {
   const card = el("div", "card");
-  card.append(el("div", "label", "Kisaran harga paling mungkin"), el("div", "big", rpRange(...r.likely_range_idr)),
-              el("div", "sub", `${perM2Range(r.likely_range_idr[0] / landArea, r.likely_range_idr[1] / landArea)} tanah`), rangeBar(r));
+  const colour = meta.colors[Math.min(classOf(r.price_per_m2_land_idr / 1e6), meta.classes - 1)];
+  card.append(el("div", "label", "Perkiraan harga rumah ini"), el("div", "big", rp(r.price_idr)),
+              el("div", "range-line", `Biasanya dijual antara ${rpRange(...r.likely_range_idr)}`),
+              el("div", "sub", `${perM2(r.price_per_m2_land_idr)} tanah`), rangeBar(r));
   const legendLine = el("div", "legend-line");
   const a = el("span"), b = el("span");
   const i1 = el("i"), i2 = el("i");
-  i1.style.background = meta.colors[Math.min(classOf(r.price_per_m2_land_idr / 1e6), meta.classes - 1)]; i2.style.background = "var(--sand)";
-  a.append(i1, document.createTextNode("paling mungkin (50%)")); b.append(i2, document.createTextNode("kisaran lebar (80%)"));
+  i1.style.background = colour; i2.style.background = "var(--sand)";
+  a.append(i1, document.createTextNode("biasanya")); b.append(i2, document.createTextNode("bisa juga sampai di sini, tapi lebih jarang"));
   legendLine.append(a, b);
   card.append(legendLine);
+  card.append(askBlock(r));
   const feature = kecamatan.features.find((f) => f.properties.name === r.area.kecamatan && (!r.area.city || f.properties.city === r.area.city))
     ?? kecamatan.features.find((f) => f.properties.name === r.area.kecamatan);
   const props = feature?.properties;
-  card.append(el("div", "sub", `Perkiraan ${rp(r.price_idr)} (${perM2(r.price_per_m2_land_idr)})`));
-  card.append(el("div", "sub", `${r.area.kecamatan}${r.area.city ? `, ${r.area.city}` : ""}${props?.cls >= 0 ? `. Median iklan di sini: Rp ${millions(props.median)} juta per m².` : ""}`));
+  card.append(el("div", "where", `${r.area.kecamatan}${r.area.city ? `, ${r.area.city}` : ""}${props?.cls >= 0 ? `. Harga umum iklan di sini: Rp ${millions(props.median)} juta per m² tanah.` : ""}`));
   if (r.warnings.length) {
     const list = el("ul");
     r.warnings.forEach((w) => list.append(el("li", "", WARNINGS[w.code] ?? w.message)));
     card.append(list);
   }
   const m = meta.model;
-  card.append(el("div", "fine", `Ini perkiraan harga seperti yang biasa tertera di iklan, bukan harga transaksi atau penilaian resmi. Pada iklan yang belum pernah dilihat model, separuh perkiraan meleset kurang dari ` +
-                                `${pct(m.holdout_median_error)} dari harga iklannya; kisaran paling mungkin memuat ${pct(m.coverage_likely)} harga sebenarnya dan kisaran lebar ${pct(m.coverage_possible)}.`));
+  card.append(el("div", "fine", `Ini perkiraan harga seperti di iklan, bukan harga jual sebenarnya dan bukan penilaian resmi. Perkiraan bisa meleset sekitar ${pct(m.holdout_median_error)} dari harga iklan, jadi anggap ini titik awal, bukan angka pasti.`));
+  const actions = el("div", "actions");
+  const edit = el("button", "ghost", "Ubah data"), another = el("button", "ghost", "Rumah lain");
+  edit.type = another.type = "button";
+  edit.addEventListener("click", () => showStep(2));
+  another.addEventListener("click", () => { $("form").reset(); $("result").replaceChildren(); showStep(1); });
+  actions.append(edit, another);
+  const share = el("button", "ghost wide share", "Bagikan hasil");
+  share.type = "button";
+  share.addEventListener("click", () => shareResult(r, share, card));
+  card.append(actions, share);
   return card;
 }
 
 $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!$("form").reportValidity()) return;
-  if (!state.point) return showResult(el("div", "card error", "Klik peta untuk menaruh pin di lokasi rumah terlebih dahulu."));
+  if (Number($("lat").value) !== state.point?.lat || Number($("lon").value) !== state.point?.lon) setPoint(Number($("lat").value), Number($("lon").value)); // Enter in a coordinate field submits before its change event
+  if (!state.point) return showResult(el("div", "card error", "Klik peta untuk menaruh pin di lokasi rumah dulu."));
   if (!API_BASE) return showResult(el("div", "card error", "Layanan perkiraan harga belum terhubung. Petanya sudah bisa dipakai; perkiraan harga segera tersedia."));
   const button = $("submit"), land = Number($("land_area").value);
+  state.lastBody = requestBody();
   button.disabled = true;
-  showResult(el("div", "card", "Menghitung…"));
-  const slow = setTimeout(() => showResult(el("div", "card", "Layanan sedang dibangunkan. Permintaan pertama setelah lama tidak dipakai bisa memakan waktu hingga satu menit…")), SLOW_NOTICE_MS);
+  showResult(el("div", "card", "Memperkirakan…"));
+  const slow = setTimeout(() => showResult(el("div", "card", "Memuat layanan. Permintaan pertama setelah lama tidak dipakai bisa memakan waktu sampai 1 menit, tunggu sebentar…")), SLOW_NOTICE_MS);
   const abort = new AbortController(), timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_BASE}/estimate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(requestBody()), signal: abort.signal });
     const body = await response.json().catch(() => null);
     showResult(response.ok ? resultCard(body, land) : el("div", "card error", errorMessage(response.status, body)));
+    if (response.ok) showStep(3);
   } catch (error) {
-    showResult(el("div", "card error", error.name === "AbortError" ? "Layanan terlalu lama menjawab. Silakan coba lagi." : "Layanan perkiraan tidak dapat dihubungi. Silakan coba lagi sebentar lagi."));
+    showResult(el("div", "card error", error.name === "AbortError" ? "Layanan terlalu lama menjawab. Coba lagi." : "Layanan perkiraan tidak dapat dihubungi. Coba lagi sebentar lagi."));
   } finally {
     clearTimeout(slow); clearTimeout(timer); button.disabled = false;
   }
 });
+
+// ---- ranking of areas, filtered by city or regency
+const rank = { city: "", sort: "desc" };
+const MAX_COMPARE = 3; // areas in the comparison
+const compare = [];
+let compareLand = "";
+const priced = kecamatan.features.map((f) => f.properties).filter((p) => p.cls >= 0);
+const cities = [...new Set(priced.map((p) => p.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "id"));
+$("rank-city").replaceChildren(new Option(`Semua (${priced.length} daerah)`, ""), ...cities.map((c) => new Option(`${c} (${priced.filter((p) => p.city === c).length})`, c)));
+
+function buildRank() {
+  const rows = priced.filter((p) => !rank.city || p.city === rank.city).sort((a, b) => (rank.sort === "desc" ? b.median - a.median : a.median - b.median));
+  $("rank-note").textContent = `${rows.length} daerah dengan harga umum per m² tanah. Klik untuk melihat di peta.`;
+  $("rank-list").replaceChildren(...rows.map((p, i) => {
+    const li = el("li", "rank-item"), b = el("button", "rank-row");
+    b.type = "button";
+    b.style.setProperty("--c", meta.colors[p.cls]);
+    const name = el("span", "name");
+    name.append(el("b", "", p.name), el("small", "", `${rank.city ? "" : `${p.city ?? ""} · `}${p.n} iklan${p.mixed ? " · harga bervariasi" : ""}`));
+    b.append(el("span", "no", String(i + 1)), name, el("span", "val", `${millions(p.median)} jt`));
+    b.addEventListener("click", () => { if (isPhone()) closeRank(); goToArea(p.code); });
+    const pick = el("button", "pick", compare.includes(p.code) ? "✓" : "+");
+    pick.type = "button";
+    pick.setAttribute("aria-pressed", String(compare.includes(p.code)));
+    pick.setAttribute("aria-label", `${compare.includes(p.code) ? "Hapus" : "Tambah"} ${p.name} ${compare.includes(p.code) ? "dari" : "ke"} perbandingan`);
+    pick.disabled = compare.length >= MAX_COMPARE && !compare.includes(p.code);
+    pick.addEventListener("click", () => { toggleCompare(p.code); });
+    li.append(b, pick);
+    return li;
+  }));
+  $("rank-list").scrollTop = 0;
+}
+function openRank(tab = "rank") {
+  dismissWelcome();
+  setTab(tab);
+  if (state.estimateOpen) closeEstimate();
+  $("rank").hidden = false;
+  syncPanels();
+  $("open-rank").setAttribute("aria-expanded", "true");
+  if (isPhone()) $("area").hidden = true;
+}
+function closeRank() {
+  $("rank").hidden = true;
+  syncPanels();
+  $("open-rank").setAttribute("aria-expanded", "false");
+}
+$("open-rank").addEventListener("click", () => ($("rank").hidden ? openRank() : closeRank()));
+$("close-rank").addEventListener("click", closeRank);
+$("rank-city").addEventListener("change", (e) => { rank.city = e.target.value; buildRank(); });
+$("rank-sort").addEventListener("click", (e) => {
+  const sort = e.target.dataset?.sort;
+  if (!sort) return;
+  rank.sort = sort;
+  document.querySelectorAll("#rank-sort button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sort === sort)));
+  buildRank();
+});
+buildRank();
+
+// ---- check an ad price against the estimate
+function askBlock(r) {
+  const form = el("form", "ask"), label = el("label", "", "Sudah lihat harga di iklan? Bandingkan di sini"), input = el("input");
+  input.type = "text"; input.inputMode = "decimal"; input.autocomplete = "off"; input.placeholder = "mis. 4,5 miliar atau 4500 juta"; input.maxLength = 30;
+  label.append(input);
+  const go = el("button", "ghost", "Bandingkan"), out = el("div", "ask-out");
+  go.type = "submit"; out.setAttribute("role", "status");
+  form.append(label, go, out);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const ask = parseRupiah(input.value), bar = form.closest(".card")?.querySelector(".range");
+    bar?.querySelector(".ask-tick")?.remove();
+    if (Number.isNaN(ask)) { out.className = "ask-out bad"; out.textContent = "Tulis harganya dengan satuan, mis. 4,5 miliar atau 4500 juta."; return; }
+    const verdict = compareAsk(ask, r);
+    out.className = `ask-out ${verdict.where}`; out.textContent = verdict.text;
+    const min = Number(bar?.dataset.min), max = Number(bar?.dataset.max);
+    if (bar && ask >= min && ask <= max) {
+      const tick = el("span", "ask-tick", "iklan");
+      tick.style.left = `${((ask - min) / (max - min)) * 100}%`;
+      bar.append(tick);
+    }
+  });
+  return form;
+}
+
+// ---- share a result as a link
+async function shareResult(r, button, card) {
+  const url = `${location.origin}${location.pathname}?${shareQuery(state.lastBody)}`;
+  const text = `Perkiraan harga rumah: ${rp(r.price_idr)} (biasanya ${rpRange(...r.likely_range_idr)}) di ${r.area.kecamatan}`;
+  const done = (message) => { button.textContent = message; setTimeout(() => { button.textContent = "Bagikan hasil"; }, 2500); };
+  try {
+    if (navigator.share) { await navigator.share({ title: "Perkiraan harga rumah", text, url }); return; }
+  } catch (error) {
+    if (error.name === "AbortError") return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    done("Link disalin ✓");
+  } catch {
+    let box = card.querySelector(".share-link");
+    if (!box) { box = el("input", "share-link"); box.readOnly = true; button.after(box); }
+    box.value = url; box.select(); done("Salin link di bawah");
+  }
+}
+
+// ---- compare 2-3 areas
+function addCompare(code) { if (!compare.includes(code) && compare.length < MAX_COMPARE) compare.push(code); refreshCompare(); }
+function toggleCompare(code) {
+  const i = compare.indexOf(code);
+  if (i >= 0) compare.splice(i, 1); else addCompare(code);
+  refreshCompare();
+}
+function refreshCompare() {
+  $("compare-count").textContent = compare.length;
+  buildRank();
+  buildCompare();
+  if (!$("area").hidden && state.selected) { const f = byCode.get(state.selected.id); if (f && state.selected.source === "kecamatan") renderArea(f.properties, "kecamatan"); }
+}
+function setTab(tab) {
+  document.querySelectorAll("#rank-tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  $("rank-view").hidden = tab !== "rank";
+  $("compare-view").hidden = tab !== "compare";
+  $("rank-title").textContent = tab === "rank" ? "Peringkat harga daerah" : "Bandingkan daerah";
+}
+$("rank-tabs").addEventListener("click", (e) => { const tab = e.target.dataset?.tab; if (tab) setTab(tab); });
+
+function buildCompare() {
+  const view = $("compare-view");
+  const picked = compare.map((code) => byCode.get(code)?.properties).filter(Boolean);
+  if (picked.length < 2) {
+    const hint = el("p", "hint", picked.length ? "Pilih satu daerah lagi untuk mulai membandingkan." : "Pilih 2 atau 3 daerah untuk dibandingkan. Pakai tombol + di tab Peringkat, atau tombol Bandingkan di kartu daerah pada peta.");
+    view.replaceChildren(hint, ...picked.map((p) => compareHead(p)));
+    return;
+  }
+  const top = Math.max(...picked.map((p) => p.median)), low = picked.reduce((a, b) => (b.median < a.median ? b : a)), high = picked.reduce((a, b) => (b.median > a.median ? b : a));
+  const grid = el("div", "cmp-grid");
+  grid.style.setProperty("--n", String(picked.length));
+  for (const p of picked) {
+    const col = el("div", "cmp-col");
+    const bar = el("div", "cmp-bar"), fill = el("i");
+    fill.style.width = `${(p.median / top) * 100}%`; fill.style.background = meta.colors[p.cls];
+    bar.append(fill);
+    col.append(compareHead(p), el("div", "cmp-price", `Rp ${millions(p.median)} juta`), el("small", "", "per m² tanah"), bar,
+               el("div", "cmp-row", `Kisaran umum ${millions(p.p25)} – ${millions(p.p75)} juta`),
+               el("div", "cmp-row", `${p.n} iklan`), el("div", "cmp-row", versusMedian(p.median, meta.overall.median)));
+    if (p.mixed) col.append(el("div", "cmp-row warn", "Harga di sini sangat bervariasi"));
+    const total = el("div", "cmp-total"); total.dataset.median = p.median;
+    col.append(total);
+    grid.append(col);
+  }
+  const gap = Math.round((1 - low.median / high.median) * 100);
+  const land = el("label", "cmp-land", "Kalau tanahmu seluas (m²)"), input = el("input");
+  input.type = "number"; input.min = "15"; input.max = "5000"; input.inputMode = "decimal"; input.placeholder = "mis. 100"; input.value = compareLand;
+  land.append(input);
+  const fillTotals = () => grid.querySelectorAll(".cmp-total").forEach((n) => {
+    const area = Number(compareLand);
+    n.textContent = area >= 15 ? `Tanah ${area} m² sekitar ${rp(Number(n.dataset.median) * 1e6 * area)}` : "";
+  });
+  input.addEventListener("input", () => { compareLand = input.value; fillTotals(); });
+  fillTotals();
+  const verdict = gap < 3 ? "Harga umum daerah-daerah ini hampir sama." : `${low.name} paling murah, sekitar ${gap}% di bawah ${high.name}.`;
+  view.replaceChildren(el("p", "cmp-verdict", verdict), grid, land,
+                       el("p", "hint", "Angka tanah di atas kasar: harga umum per m² dikali luas, belum termasuk bangunan."));
+}
+function compareHead(p) {
+  const head = el("div", "cmp-head"), name = el("button", "cmp-name"), remove = el("button", "cmp-x", "✕");
+  name.type = remove.type = "button";
+  name.append(el("b", "", p.name), el("small", "", p.city ?? ""));
+  remove.setAttribute("aria-label", `Hapus ${p.name} dari perbandingan`);
+  name.addEventListener("click", () => { if (isPhone()) closeRank(); goToArea(p.code); });
+  remove.addEventListener("click", () => toggleCompare(p.code));
+  head.append(name, remove);
+  return head;
+}
+buildCompare();
+
+// ---- layers to consider: public OpenStreetMap places and lines, loaded the first time they are switched on
+const COLORS = { krl: "#1f4fb4", mrt: "#0a7d5a", lrt: "#7b3fb8", busway: "#0f8f95", bus: "#0f8f95", toll: "#3b4350", river: "#3a8fd6", canal: "#3a8fd6", mall: "#c2337c", hospital: "#d6262c", university: "#a77300" };
+const KIND_LABEL = { krl: "Stasiun kereta", mrt: "Stasiun MRT", lrt: "Stasiun LRT", busway: "Halte Transjakarta", bus: "Halte bus", toll: "Gerbang tol", mall: "Mal", hospital: "Rumah sakit", university: "Kampus" };
+const dot = (min, a, b, c, d) => ({ minzoom: min, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, a, 11, b, 14, c, 16, d], "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
+const STATION_COLOR = ["match", ["get", "kind"], "krl", COLORS.krl, "mrt", COLORS.mrt, "lrt", COLORS.lrt, "#555555"];
+const place = (key, label, kind) => ({ key, group: "Fasilitas", label, swatches: [COLORS[kind]], layers: [{ id: key, file: "layer_places", type: "circle", filter: ["==", ["get", "kind"], kind], poi: true, ...dot(9.5, 2, 3.5, 5.5, 7), color: COLORS[kind] }] });
+const LAYER_DEFS = [
+  { key: "stations", group: "Transportasi", label: "Stasiun kereta, MRT, LRT", swatches: [COLORS.krl, COLORS.mrt, COLORS.lrt], layers: [
+    { id: "rail", file: "layer_rail", type: "line", minzoom: 8.5, paint: { "line-color": "#5b6573", "line-width": 1.3, "line-opacity": 0.8 } },
+    { id: "stations", file: "layer_stations", type: "circle", poi: true, ...dot(8.5, 4, 5, 7, 9), color: STATION_COLOR },
+    { id: "names", file: "layer_stations", type: "symbol", minzoom: 12, layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1], "text-anchor": "top", "text-max-width": 8 },
+      paint: { "text-color": "#1c1a18", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.5 } } ] },
+  { key: "busway", group: "Transportasi", label: "Halte bus (Transjakarta dan lainnya)", swatches: [COLORS.busway], layers: [{ id: "busway", file: "layer_busway", type: "circle", poi: true, ...dot(9, 1.6, 2.6, 4.2, 6), color: COLORS.busway }] },
+  { key: "toll", group: "Transportasi", label: "Gerbang tol", swatches: [COLORS.toll], layers: [{ id: "toll", file: "layer_toll", type: "circle", poi: true, ...dot(8.5, 3, 4.5, 6, 8), color: COLORS.toll }] },
+  { key: "rivers", group: "Lingkungan", label: "Sungai dan kanal", swatches: [COLORS.river], line: true, layers: [{ id: "rivers", file: "layer_rivers", type: "line", minzoom: 8.5,
+    paint: { "line-color": COLORS.river, "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 2.6] } }] },
+  place("mall", "Mal", "mall"), place("hospital", "Rumah sakit", "hospital"), place("university", "Kampus", "university"),
+];
+const layerId = (def, layer) => `lyr-${def.key}-${layer.id}`;
+const poiIds = LAYER_DEFS.flatMap((def) => def.layers.filter((l) => l.poi).map((l) => layerId(def, l)));
+
+function setLayer(def, on) {
+  if (on) {
+    for (const l of def.layers) {
+      if (map.getLayer(layerId(def, l))) continue;
+      if (!map.getSource(l.file)) map.addSource(l.file, { type: "geojson", data: `data/${l.file}.geojson` });
+      const spec = { id: layerId(def, l), type: l.type, source: l.file, ...(l.minzoom && { minzoom: l.minzoom }), ...(l.filter && { filter: l.filter }), ...(l.layout && { layout: l.layout }) };
+      spec.paint = l.type === "circle" ? { ...l.paint, "circle-color": l.color } : l.paint;
+      map.addLayer(spec, "kecamatan-labels");
+    }
+  }
+  for (const l of def.layers) if (map.getLayer(layerId(def, l))) map.setLayoutProperty(layerId(def, l), "visibility", on ? "visible" : "none");
+}
+
+const poiAt = (point) => {
+  const ids = poiIds.filter((id) => map.getLayer(id) && map.getLayoutProperty(id, "visibility") !== "none");
+  if (!ids.length) return undefined;
+  return map.queryRenderedFeatures([[point.x - 6, point.y - 6], [point.x + 6, point.y + 6]], { layers: ids })[0];
+};
+function poiTip(props) {
+  const box = el("div");
+  box.append(el("b", "", props.name || KIND_LABEL[props.kind]), ...(props.name ? [el("span", "", KIND_LABEL[props.kind])] : []));
+  return box;
+}
+
+(function buildLayerPanel() {
+  const panel = $("layers"), body = $("layers-body"), title = panel.querySelector(".title");
+  title.addEventListener("click", () => { const c = panel.classList.toggle("collapsed"); title.setAttribute("aria-expanded", String(!c)); });
+  let group = null;
+  for (const def of LAYER_DEFS) {
+    if (def.group !== group) { group = def.group; body.append(el("div", "group", group)); }
+    const chip = el("label", "chip"), box = el("input");
+    box.type = "checkbox"; box.dataset.layer = def.key;
+    const swatches = el("span", "sw");
+    def.swatches.forEach((c) => { const i = el("i"); i.style.background = c; if (def.line) i.classList.add("line"); swatches.append(i); });
+    chip.append(box, swatches, document.createTextNode(def.label));
+    box.addEventListener("change", () => { if (!map.getLayer("kecamatan-labels")) { box.checked = false; return; } setLayer(def, box.checked); }); // the map is not ready yet
+    body.append(chip);
+  }
+})();
+
+// ---- open a shared link: fill the form, drop the pin and run the estimate
+if (shared) {
+  map.once("idle", () => {
+    const set = (id, value) => { $(id).value = value ?? ""; };
+    for (const id of ["land_area", "building_area", "bedrooms", "bathrooms", "floors"]) set(id, shared[id]);
+    for (const [id, value] of Object.entries(shared.specs)) set(id, value);
+    set("notes", shared.notes);
+    map.jumpTo({ center: [shared.lon, shared.lat], zoom: 13 });
+    setPoint(shared.lat, shared.lon);
+    openEstimate();
+    showStep(2);
+    if (API_BASE) $("form").requestSubmit();
+  });
+}
+
+// ---- form checks: say what is wrong while typing, and keep impossible numbers out (no minus, no "e", whole numbers where a count is expected)
+const fmtNumber = (n) => n.toLocaleString("id-ID");
+function showFieldError(input, message) {
+  const field = input.closest(".f");
+  if (!field) return;
+  let err = field.querySelector(".err");
+  if (!err) { err = el("small", "err"); err.setAttribute("role", "alert"); field.append(err); }
+  err.textContent = message;
+  input.closest(".box")?.classList.toggle("bad", message !== "");
+}
+function checkNumber(input) {
+  const v = input.value.trim(), n = Number(v), min = Number(input.min), max = Number(input.max);
+  let message = "";
+  if (input.validity.badInput) message = "Isi dengan angka.";
+  else if (v !== "" && (n < min || n > max)) message = `Isi angka ${fmtNumber(min)} sampai ${fmtNumber(max)}.`;
+  else if (v !== "" && input.step === "1" && !Number.isInteger(n)) message = "Isi angka bulat.";
+  input.setCustomValidity(message);
+  showFieldError(input, message);
+}
+for (const input of document.querySelectorAll("#form input[type=number]")) {
+  input.addEventListener("input", () => checkNumber(input));
+  input.addEventListener("blur", () => checkNumber(input));
+  if (input.id === "lat" || input.id === "lon") continue; // coordinates can be negative decimals
+  const blocked = ["e", "E", "+", "-", ...(input.step === "1" ? [".", ","] : [])];
+  input.addEventListener("keydown", (e) => { if (blocked.includes(e.key)) e.preventDefault(); });
+}

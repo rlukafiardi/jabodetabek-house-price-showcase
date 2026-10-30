@@ -36,10 +36,10 @@ test("edgeLabel drops a trailing zero", () => {
 });
 
 test("versusMedian in words", () => {
-  assert.equal(versusMedian(40.4, 14.4), "2,8× median Jabodetabek");
-  assert.equal(versusMedian(20, 14.4), "39% di atas median Jabodetabek");
-  assert.equal(versusMedian(7, 14.4), "51% di bawah median Jabodetabek");
-  assert.equal(versusMedian(14.5, 14.4), "setara dengan median Jabodetabek");
+  assert.equal(versusMedian(40.4, 14.4), "2,8× harga umum Jabodetabek");
+  assert.equal(versusMedian(20, 14.4), "39% di atas harga umum Jabodetabek");
+  assert.equal(versusMedian(7, 14.4), "51% di bawah harga umum Jabodetabek");
+  assert.equal(versusMedian(14.5, 14.4), "setara dengan harga umum Jabodetabek");
 });
 
 test("errorMessage in Indonesian for codes, validation lists, rate limits and server errors", () => {
