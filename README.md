@@ -3,9 +3,18 @@
 An asking-price map and estimator for houses in Jabodetabek (Jakarta, Bogor, Depok, Tangerang, Bekasi): where prices per m² of land sit,
 and what a house like yours would ask, with an honest range around the number.
 
-**Live demo:** coming soon. **Model card:** [docs/model-card.md](docs/model-card.md).
+**Live demo:** coming soon (the site is built and tested; deployment comes next). **Model card:** [docs/model-card.md](docs/model-card.md).
 
 ![Asking price per m² of land by kecamatan](reports/figures/price_map_kecamatan.png)
+
+## The site
+A static page (MapLibre on a free OpenStreetMap-based basemap) shows the price map by kecamatan, with an H3 resolution-7 toggle for a
+finer view, and an estimate form that calls the model API. The map shows a price only where an area has at least 5 listings, uses
+equal-count colour classes and outlines kecamatan whose prices are mixed. The form returns a likely and a possible price range with the
+price per m² of land underneath, and warns where the model is weak. It works on a phone, and an end-to-end test in a real browser checks
+the map, the toggle, the click-to-place flow, the estimate and the refusals ([web/](web/)).
+
+![The site with an estimate](reports/figures/site_estimate.png)
 
 ## Result
 On 562 listings the final model never saw (set aside before the final model was chosen, scored once):

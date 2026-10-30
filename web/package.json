@@ -1,0 +1,12 @@
+{
+  "name": "jabodetabek-house-price-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/format.test.mjs",
+    "e2e": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}
