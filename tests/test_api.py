@@ -57,7 +57,7 @@ def test_missing_required_field_is_rejected(client):
 
 def test_point_outside_the_area_is_a_422_with_a_message(client):
     response = client.post("/estimate", json={**BODY, "lat": -5.9})
-    assert response.status_code == 422 and "outside" in response.json()["detail"]
+    assert response.status_code == 422 and response.json()["detail"]["code"] == "outside_area" and "outside" in response.json()["detail"]["message"]
 
 
 def test_rate_limit_per_client(client):

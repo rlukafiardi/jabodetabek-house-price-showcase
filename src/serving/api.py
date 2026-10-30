@@ -96,7 +96,7 @@ def create_app(estimator: Estimator | None = None) -> FastAPI:
             with lock:
                 return request.app.state.estimator.estimate(house.to_house())
         except OutsideArea as error:
-            raise HTTPException(422, str(error)) from error
+            raise HTTPException(422, {"code": "outside_area", "message": str(error)}) from error
 
     return app
 
