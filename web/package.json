@@ -7,6 +7,7 @@
     "e2e": "node tests/e2e.mjs"
   },
   "devDependencies": {
-    "puppeteer-core": "^25.16.0"
+    "puppeteer-core": "^25.16.0",
+    "wrangler": "4.156.0"
   }
 }
