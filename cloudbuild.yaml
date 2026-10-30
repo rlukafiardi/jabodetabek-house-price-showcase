@@ -1,0 +1,14 @@
+# CI on Google Cloud Build: install the locked environment on Linux and run the tests. Run with `make ci`.
+steps:
+  - name: python:3.14-slim
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends libgomp1 libexpat1 >/dev/null
+        pip install -q uv
+        uv sync --frozen --group serving
+        uv run pytest -q
+timeout: 900s
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,0 +1,34 @@
+group,segment,n,median_ape,bias
+price per m² quartile,cheapest 25%,870,0.296,0.2096
+price per m² quartile,2nd,866,0.1868,0.0356
+price per m² quartile,3rd,875,0.1576,-0.0125
+price per m² quartile,dearest 25%,858,0.2128,-0.1734
+land area,<60,677,0.186,-0.0048
+land area,60-90,854,0.1731,-0.0592
+land area,90-120,520,0.204,-0.005
+land area,120-200,662,0.212,0.0258
+land area,200-300,338,0.2169,0.024
+land area,>300,418,0.3178,0.0313
+floors stated,1,861,0.2079,0.0076
+floors stated,2,1692,0.1858,-0.0064
+floors stated,3+,308,0.1868,-0.0179
+floors stated,missing,608,0.2557,-0.0262
+coordinate,district centroid,851,0.1813,-0.0121
+coordinate,own,2618,0.2106,-0.0036
+description length,shortest 25%,871,0.2393,-0.0391
+description length,2nd,865,0.1879,0.0014
+description length,3rd,868,0.1796,0.0092
+description length,longest 25%,865,0.1979,-0.0115
+city,Kab. Bekasi,205,0.2689,-0.0799
+city,Kab. Bogor,412,0.2322,0.0008
+city,Kab. Tangerang,262,0.2128,-0.0669
+city,Kota Bekasi,230,0.1928,0.0131
+city,Kota Bogor,94,0.2026,-0.0499
+city,Kota Depok,336,0.189,0.0203
+city,Kota Jakarta Barat,314,0.1856,-0.0007
+city,Kota Jakarta Pusat,150,0.2151,-0.029
+city,Kota Jakarta Selatan,452,0.2174,-0.0012
+city,Kota Jakarta Timur,384,0.1762,0.0074
+city,Kota Jakarta Utara,191,0.1942,-0.0312
+city,Kota Tangerang,174,0.1816,0.0605
+city,Kota Tangerang Selatan,265,0.1665,-0.0118

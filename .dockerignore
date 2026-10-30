@@ -1,0 +1,10 @@
+/.venv
+/.git
+/.github
+/data
+/reports
+/app
+/docs
+/tests
+/.gcloud
+**/__pycache__

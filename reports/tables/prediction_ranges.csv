@@ -1,0 +1,15 @@
+city,low,high,low_50,high_50,n
+all cities,0.637,1.672,0.823,1.318,3469.0
+Kab. Bekasi,0.574,1.769,0.771,1.419,205.0
+Kab. Bogor,0.499,1.757,0.745,1.318,412.0
+Kab. Tangerang,0.674,1.974,0.873,1.503,262.0
+Kota Bekasi,0.588,1.365,0.763,1.175,230.0
+Kota Depok,0.593,1.453,0.777,1.199,336.0
+Kota Jakarta Barat,0.745,1.696,0.919,1.404,314.0
+Kota Jakarta Pusat,0.685,2.258,0.962,1.506,150.0
+Kota Jakarta Selatan,0.704,1.978,0.849,1.444,452.0
+Kota Jakarta Timur,0.632,1.401,0.781,1.183,384.0
+Kota Jakarta Utara,0.671,1.694,0.884,1.443,191.0
+Kota Tangerang,0.598,1.436,0.747,1.167,174.0
+Kota Tangerang Selatan,0.711,1.527,0.871,1.287,265.0
+large plots,0.507,2.138,0.737,1.595,418.0

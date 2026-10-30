@@ -1,0 +1,9 @@
+cv,fraction,train_rows,median_ape
+random,0.25,693,21.94
+random,0.5,1387,21.11
+random,0.75,2081,20.64
+random,1.0,2775,20.18
+spatial,0.25,693,24.29
+spatial,0.5,1387,23.35
+spatial,0.75,2081,22.96
+spatial,1.0,2775,23.16

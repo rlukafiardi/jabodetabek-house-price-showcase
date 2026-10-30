@@ -1,0 +1,6 @@
+what,n,median_ape,ci_low,ci_high
+"holdout, all",562,0.2276,,
+"holdout, with a same-house listing in training",43,0.1812,,
+"holdout, without",519,0.2288,0.211,0.2538
+"random CV, one repeat (usual folds)",3469,0.2024,,
+"random CV, folds grouped by house, 3 repeats",3469,0.2045,,

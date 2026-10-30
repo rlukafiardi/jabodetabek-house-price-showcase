@@ -1,0 +1,153 @@
+date,experiment,cv,n,median_ape,median_ape_sd,mean_ape,bias
+2026-10-29,E0 gbm reference,random,1007,22.41,0.25,32.23,-1.67
+2026-10-29,E0 gbm reference,spatial,1007,24.36,0.47,33.88,-3.74
+2026-10-29,E1 + smearing,random,1007,22.4,0.14,33.55,2.22
+2026-10-29,E1 + smearing,spatial,1007,24.42,0.52,35.05,0.05
+2026-10-29,E2 + neighbours k=10,random,1007,21.84,0.58,32.16,-1.59
+2026-10-29,E2 + neighbours k=10,spatial,1007,24.66,0.92,34.57,-1.45
+2026-10-29,E3 + neighbours k=5,random,1007,21.85,0.27,31.73,-1.04
+2026-10-29,E3 + neighbours k=5,spatial,1007,25.4,0.51,34.76,-1.79
+2026-10-29,E3 + neighbours k=20,random,1007,22.14,0.47,31.95,-1.71
+2026-10-29,E3 + neighbours k=20,spatial,1007,25.04,0.81,34.35,-2.61
+2026-10-29,M ridge,random,1000,22.66,0.32,32.78,0.14
+2026-10-29,M ridge,spatial,1000,23.86,0.5,34.07,-1.17
+2026-10-29,M elastic net,random,1000,22.66,0.31,32.79,0.33
+2026-10-29,M elastic net,spatial,1000,23.78,0.49,34.06,-1.36
+2026-10-29,M huber (robust linear),random,1000,22.32,0.22,32.47,0.52
+2026-10-29,M huber (robust linear),spatial,1000,23.71,0.62,33.85,-1.21
+2026-10-29,"M knn (k=15, distance)",random,1000,26.34,0.36,39.2,1.24
+2026-10-29,"M knn (k=15, distance)",spatial,1000,28.27,0.41,41.71,1.75
+2026-10-29,M svr (rbf),random,1000,22.11,0.31,32.1,0.72
+2026-10-29,M svr (rbf),spatial,1000,23.4,0.87,34.25,-1.8
+2026-10-29,M mlp (64-32),random,1000,49.88,1.5,407.32,-4.84
+2026-10-29,M mlp (64-32),spatial,1000,61.01,1.79,1030.66,-13.93
+2026-10-29,M random forest,random,1000,21.12,0.16,31.12,-1.33
+2026-10-29,M random forest,spatial,1000,24.86,0.44,33.61,-4.26
+2026-10-29,M extra trees,random,1000,20.92,0.22,31.03,-1.44
+2026-10-29,M extra trees,spatial,1000,23.6,0.48,33.65,-3.28
+2026-10-29,M hist gbm (E4),random,1000,21.53,0.42,30.69,-1.31
+2026-10-29,M hist gbm (E4),spatial,1000,23.42,0.8,32.41,-2.99
+2026-10-29,D linear regression,random,1000,22.82,0.39,32.85,0.19
+2026-10-29,D linear regression,spatial,1000,24.36,0.58,34.21,-1.11
+2026-10-29,D ridge,random,1000,22.79,0.39,32.84,0.23
+2026-10-29,D ridge,spatial,1000,24.29,0.6,34.19,-1.11
+2026-10-29,D lasso,random,1000,36.74,0.07,60.55,-5.46
+2026-10-29,D lasso,spatial,1000,37.63,0.87,61.12,-7.63
+2026-10-29,D elastic net,random,1000,35.5,0.23,57.68,-5.29
+2026-10-29,D elastic net,spatial,1000,36.0,0.56,58.15,-7.13
+2026-10-29,D huber,random,1000,22.32,0.22,32.47,0.52
+2026-10-29,D huber,spatial,1000,23.71,0.62,33.85,-1.21
+2026-10-29,D knn,random,1000,27.91,0.27,41.06,1.65
+2026-10-29,D knn,spatial,1000,30.09,0.31,44.16,0.86
+2026-10-29,D svr,random,1000,22.21,0.6,32.33,0.44
+2026-10-29,D svr,spatial,1000,23.83,0.56,34.49,-1.53
+2026-10-29,D decision tree,random,1000,30.84,0.36,47.92,-0.26
+2026-10-29,D decision tree,spatial,1000,36.33,0.87,56.78,-2.39
+2026-10-29,D random forest,random,1000,21.59,0.29,31.71,-1.32
+2026-10-29,D random forest,spatial,1000,25.34,0.57,34.05,-4.19
+2026-10-29,D extra trees,random,1000,21.15,0.39,31.23,-1.08
+2026-10-29,D extra trees,spatial,1000,24.16,0.32,33.73,-3.26
+2026-10-29,D bagging,random,1000,23.36,0.79,33.87,-0.37
+2026-10-29,D bagging,spatial,1000,26.74,0.7,36.21,-4.27
+2026-10-29,D adaboost,random,1000,26.24,0.5,34.95,-8.56
+2026-10-29,D adaboost,spatial,1000,27.13,0.56,35.52,-8.98
+2026-10-29,D gradient boosting,random,1000,21.44,0.38,30.65,-1.43
+2026-10-29,D gradient boosting,spatial,1000,23.72,0.74,33.26,-4.3
+2026-10-29,D hist gradient boosting,random,1000,21.49,0.53,31.02,-0.96
+2026-10-29,D hist gradient boosting,spatial,1000,25.17,0.82,33.93,-2.52
+2026-10-29,D mlp,random,1000,24.91,1.02,34.62,-1.6
+2026-10-29,D mlp,spatial,1000,26.95,0.44,36.1,-1.07
+2026-10-29,D xgboost,random,1000,22.25,0.81,32.36,-1.03
+2026-10-29,D xgboost,spatial,1000,26.33,0.63,35.55,-4.51
+2026-10-29,D lightgbm,random,1000,21.76,0.46,31.1,-0.45
+2026-10-29,D lightgbm,spatial,1000,25.23,0.97,33.97,-2.39
+2026-10-29,D E4 hist gbm (our settings),random,1000,21.53,0.36,30.7,-1.27
+2026-10-29,D E4 hist gbm (our settings),spatial,1000,23.42,0.81,32.41,-3.04
+2026-10-29,E6 tuned hist gbm,random,1000,21.63,0.43,30.69,-1.17
+2026-10-29,E6 tuned hist gbm,spatial,1000,23.14,0.73,32.45,-2.18
+2026-10-29,E6 tuned gradient boosting,random,1000,21.66,0.49,30.74,-0.86
+2026-10-29,E6 tuned gradient boosting,spatial,1000,23.55,0.82,32.72,-3.16
+2026-10-29,E6 tuned extra trees,random,1000,20.47,0.38,30.99,-0.94
+2026-10-29,E6 tuned extra trees,spatial,1000,23.35,0.12,33.5,-3.21
+2026-10-29,E6 tuned huber,random,1000,22.0,0.53,32.19,0.25
+2026-10-29,E6 tuned huber,spatial,1000,23.62,0.23,33.47,-1.37
+2026-10-29,E6 tuned lightgbm,random,1000,21.7,0.4,30.51,-0.92
+2026-10-29,E6 tuned lightgbm,spatial,1000,23.18,0.46,32.17,-2.18
+2026-10-29,E6 tuned xgboost,random,1000,21.22,0.41,30.6,-1.38
+2026-10-29,E6 tuned xgboost,spatial,1000,22.94,0.35,32.19,-2.86
+2026-10-29,"E7 xgb tuned, all features",random,1000,21.22,0.37,30.59,-1.31
+2026-10-29,"E7 xgb tuned, all features",spatial,1000,23.01,0.33,32.17,-2.92
+2026-10-29,E7 without coordinates,random,1000,21.14,0.21,31.39,-0.68
+2026-10-29,E7 without coordinates,spatial,1000,23.76,0.41,33.85,-1.33
+2026-10-29,E7 without km to Monas,random,1000,21.1,0.24,30.73,-1.31
+2026-10-29,E7 without km to Monas,spatial,1000,23.35,0.27,32.77,-3.53
+2026-10-29,E7 without transit distances,random,1000,21.3,0.39,30.96,-0.87
+2026-10-29,E7 without transit distances,spatial,1000,23.47,0.35,32.77,-2.68
+2026-10-29,E7 without toll distance,random,1000,20.95,0.19,30.57,-1.25
+2026-10-29,E7 without toll distance,spatial,1000,23.02,0.68,32.05,-2.67
+2026-10-29,E7 without amenity distances,random,1000,21.02,0.31,30.5,-1.22
+2026-10-29,E7 without amenity distances,spatial,1000,22.98,0.46,31.87,-2.57
+2026-10-29,E7 without flood index,random,1000,20.94,0.36,30.6,-1.48
+2026-10-29,E7 without flood index,spatial,1000,23.15,0.57,32.15,-2.65
+2026-10-29,E7 without floors,random,1000,21.61,0.43,31.26,-1.86
+2026-10-29,E7 without floors,spatial,1000,24.29,0.37,33.35,-4.36
+2026-10-29,E7 without centroid flag,random,1000,21.09,0.32,30.63,-1.37
+2026-10-29,E7 without centroid flag,spatial,1000,23.07,0.5,32.15,-2.73
+2026-10-29,E7 without listing age,random,1000,20.92,0.32,30.64,-1.43
+2026-10-29,E7 without listing age,spatial,1000,23.3,0.54,32.33,-3.01
+2026-10-29,E7 without text flags,random,1000,21.14,0.47,31.03,-1.62
+2026-10-29,E7 without text flags,spatial,1000,23.66,0.22,32.57,-3.53
+2026-10-29,E7 without rooms,random,1000,21.56,0.34,31.47,-1.36
+2026-10-29,E7 without rooms,spatial,1000,24.02,0.51,33.36,-3.24
+2026-10-29,E8 final + spatial buffers,random,1000,20.88,0.25,30.43,-0.55
+2026-10-29,E8 final + spatial buffers,spatial,1000,22.65,0.61,31.87,-2.5
+2026-10-30,E4 + text flags,random,2668,20.96,0.23,31.01,-0.57
+2026-10-30,E4 + text flags,spatial,2668,22.8,0.29,33.37,-1.21
+2026-10-30,E5 + text model score,random,2668,20.25,0.2,29.19,-0.9
+2026-10-30,E5 + text model score,spatial,2668,22.36,0.44,31.44,-2.39
+2026-10-30,"E8a xgb tuned, all E4 features",random,2668,20.98,0.07,31.1,-0.75
+2026-10-30,"E8a xgb tuned, all E4 features",spatial,2668,22.39,0.26,33.05,-1.35
+2026-10-30,E9c floors filled from text,random,3037,21.59,0.12,32.66,-1.46
+2026-10-30,E9c floors filled from text,spatial,3037,23.98,0.31,34.57,-2.94
+2026-10-30,E9d district-centroid coordinates,random,3037,21.56,0.12,32.59,-1.14
+2026-10-30,E9d district-centroid coordinates,spatial,3037,23.62,0.21,34.62,-2.34
+2026-10-30,E10 absolute-error objective,random,3037,21.88,0.13,34.37,-0.02
+2026-10-30,E10 absolute-error objective,spatial,3037,24.12,0.2,36.51,-1.5
+2026-10-30,E11 outliers trimmed in training,random,3037,21.45,0.17,33.06,-0.73
+2026-10-30,E11 outliers trimmed in training,spatial,3037,23.87,0.22,35.11,-2.27
+2026-10-30,E9b + facility flags,random,3037,21.56,0.06,32.56,-1.06
+2026-10-30,E9b + facility flags,spatial,3037,23.52,0.17,34.62,-2.32
+2026-10-30,E14b ensemble + spec fields + facilities + text score,random,3037,20.07,0.14,29.9,-0.67
+2026-10-30,E14b ensemble + spec fields + facilities + text score,spatial,3037,22.45,0.38,31.96,-2.51
+2026-10-30,E15 ensemble + comparables k=10,random,3469,19.72,0.15,30.51,-0.57
+2026-10-30,E15 ensemble + comparables k=10,spatial,3469,24.54,0.28,33.67,-8.98
+2026-10-30,E16a ensemble + size ratio,random,3469,20.65,0.22,31.2,-0.89
+2026-10-30,E16a ensemble + size ratio,spatial,3469,23.18,0.39,33.78,-2.81
+2026-10-30,E16b large plots by building price,random,3469,20.95,0.26,31.43,-1.44
+2026-10-30,E19a ensemble without extra trees (shippable),random,3469,21.64,0.22,32.14,-0.8
+2026-10-30,E16b large plots by building price,spatial,3469,23.73,0.36,33.75,-3.43
+2026-10-30,E19a ensemble without extra trees (shippable),spatial,3469,23.8,0.32,34.53,-2.72
+2026-10-30,E20 ensemble + wealth index and population,random,3469,20.64,0.1,31.2,-0.52
+2026-10-30,"E19b ensemble, extra trees with 20-listing leaves",random,3469,21.49,0.19,32.82,-0.92
+2026-10-30,E20 ensemble + wealth index and population,spatial,3469,23.33,0.36,34.03,-2.43
+2026-10-30,"E19b ensemble, extra trees with 20-listing leaves",spatial,3469,23.66,0.33,35.33,-3.09
+2026-10-30,E8 final model,random,3469,22.08,0.21,34.14,-1.01
+2026-10-30,E8 final model,spatial,3469,24.44,0.25,36.59,-1.51
+2026-10-30,E9a + spec fields,random,3469,22.02,0.19,34.0,-1.4
+2026-10-30,E9a + spec fields,spatial,3469,24.23,0.33,36.21,-1.62
+2026-10-30,E12 ensemble xgb + extra trees + ridge,random,3469,21.9,0.13,33.51,-1.07
+2026-10-30,E12 ensemble xgb + extra trees + ridge,spatial,3469,23.77,0.18,35.86,-1.93
+2026-10-30,E13 + text score on xgboost,random,3469,21.8,0.26,32.31,-1.05
+2026-10-30,E13 + text score on xgboost,spatial,3469,24.0,0.43,35.12,-2.83
+2026-10-30,E14a ensemble + spec fields + text score,random,3469,20.77,0.21,31.49,-0.7
+2026-10-30,E14a ensemble + spec fields + text score,spatial,3469,23.38,0.24,34.17,-2.97
+2026-10-30,"E22 ensemble + text score, no spec fields",random,3469,21.04,0.13,31.63,-0.8
+2026-10-30,"E22 ensemble + text score, no spec fields",spatial,3469,23.6,0.24,34.46,-3.02
+2026-10-30,E21 ensemble + context + size ratio,random,3469,20.4,0.28,30.6,-0.96
+2026-10-30,E21 ensemble + context + size ratio,spatial,3469,22.83,0.44,33.05,-2.99
+2026-10-30,E23 ensemble final + floors filled from the size ratio,random,3469,20.36,0.18,30.98,-1.13
+2026-10-30,E23 ensemble final + floors filled from the size ratio,spatial,3469,23.11,0.31,33.6,-3.19
+2026-10-30,E18 ensemble + neighbourhood context,random,3469,20.34,0.17,30.88,-1.04
+2026-10-30,E18 ensemble + neighbourhood context,spatial,3469,23.0,0.43,33.53,-3.22
+2026-10-30,E24 ensemble final + land title,random,3469,20.26,0.16,30.77,-0.92
+2026-10-30,E24 ensemble final + land title,spatial,3469,23.0,0.52,33.45,-2.88

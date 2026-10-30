@@ -1,0 +1,15 @@
+# Build the API image and smoke-test it, without pushing it anywhere. Needs the bundle (make bundle). Run with `make image-check`.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, -t, api:test, .]
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        docker images api:test --format 'image size: {{.Size}}'
+        echo "compressed size: $(docker save api:test | gzip | wc -c) bytes"
+        docker run --rm api:test python -c "$(cat scripts/smoke_api.py)"
+timeout: 1500s
+options:
+  logging: CLOUD_LOGGING_ONLY

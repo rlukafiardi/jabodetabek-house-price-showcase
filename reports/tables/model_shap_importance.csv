@@ -1,0 +1,49 @@
+feature,mean_abs_effect_pct
+text score (title and description),31.907
+floors,11.684
+bathrooms,8.955
+land area (log),8.684
+km to Monas,6.366
+km to nearest CBD core,5.612
+km to nearest business centre,5.241
+building area (log),3.324
+commercial land within 500 m,3.297
+longitude,1.465
+km to busway stop,1.369
+km to secondary road,1.063
+latitude,0.885
+furnished level (0-2),0.766
+km to tertiary road,0.711
+piped water PAM (spec),0.642
+km to industrial land,0.613
+km to primary road,0.536
+cars that fit the access road,0.424
+text: gated,0.421
+listing age (days),0.385
+text: urgent,0.346
+km to power line,0.345
+text: flood free,0.318
+km to MRT/LRT,0.317
+km to rail station,0.271
+electricity (VA),0.259
+km to KRL station,0.259
+residential land within 500 m,0.215
+bedrooms,0.209
+km to river or canal,0.183
+km to railway line,0.17
+flood hazard index,0.128
+text: luxury,0.126
+text: furnished,0.108
+text: auction,0.083
+maid rooms (spec),0.079
+carport spaces,0.059
+industrial land within 500 m,0.041
+floors missing (flag),0.017
+garage (spec),0.005
+text: commercial,0.003
+text: new,0.002
+text: corner,0.001
+text: needs work,0.0
+coordinate is a district centroid,0.0
+text: land value,0.0
+text: wide road,0.0
