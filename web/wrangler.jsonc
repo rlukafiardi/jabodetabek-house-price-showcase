@@ -1,0 +1,7 @@
+{
+  // The public site: static files from dist/ (make site-dist), served by Cloudflare Workers static assets; security headers come from dist/_headers.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "harga-rumah-jabodetabek",
+  "compatibility_date": "2026-10-30",
+  "assets": { "directory": "./dist" }
+}
