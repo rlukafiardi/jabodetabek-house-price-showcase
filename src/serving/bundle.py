@@ -24,6 +24,11 @@ def city_by_code(train: pd.DataFrame) -> dict[str, str]:
     return train.groupby(code).city.agg(lambda c: c.value_counts().index[0]).to_dict()
 
 
+def reference_values(train: pd.DataFrame, inner_scores: np.ndarray) -> pd.Series:
+    """The typical value (median) of every model input over the training listings: what "an average house" means in the explanation of an estimate."""
+    return train[MODEL_FEATURES].assign(text_score=inner_scores).median()
+
+
 def build() -> None:
     train = add_words(load_usable("train"))
     y = target(train)
@@ -34,6 +39,7 @@ def build() -> None:
         "parts": fit_parts(train[MODEL_FEATURES].assign(text_score=inner_scores), y),
         "text_model": text_model().fit(train.words, y),
         "text_score_range": tuple(np.quantile(inner_scores, TEXT_SCORE_QUANTILES)),
+        "reference": reference_values(train, inner_scores),
         "columns": columns, "age_days": float(train.age_days.min()),  # a listing posted now looks like the freshest training listing
         "ranges": pd.read_csv(RANGES, index_col="city"), "city_by_code": city_by_code(train),
         "info": {"trained_rows": len(train), "holdout_median_error": float(holdout.median_ape), "holdout_interval": [float(holdout.median_ci_low), float(holdout.median_ci_high)]},
