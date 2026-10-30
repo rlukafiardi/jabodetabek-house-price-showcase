@@ -4,3 +4,8 @@ __pycache__/
 /data/
 /serving/
 web/node_modules/
+web/dist/
+*.env
+.cloudflare*
+.wrangler/
+.gcloud/
