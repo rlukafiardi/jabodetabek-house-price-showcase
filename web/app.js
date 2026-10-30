@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { classLabels, compareAsk, edgeLabel, errorMessage, millions, parseRupiah, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "./format.mjs";
+import { affordability, classLabels, compareAsk, edgeLabel, factorLine, errorMessage, millions, parseRupiah, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "./format.mjs";
 import { readShared, shareQuery } from "./share.mjs";
 import { BBOX, geocoderUrl, matchAreas, parsePlaces } from "./search.mjs";
 
@@ -29,7 +29,7 @@ const readableOn = (hex) => (parseInt(hex.slice(1, 3), 16) * 0.299 + parseInt(he
 const classOf = (millionsPerM2) => meta.edges.slice(1, -1).filter((e) => millionsPerM2 >= e).length;
 
 const shared = readShared(location.search); // a link someone sent: the same estimate opens
-const state = { view: "kecamatan", point: null, marker: null, hovered: null, selected: null, isolated: null, locked: null, estimateOpen: false, step: 1 };
+const state = { view: "kecamatan", point: null, marker: null, hovered: null, selected: null, isolated: null, locked: null, estimateOpen: false, step: 1, budget: null };
 
 // ---- the text of "about" from the data's own numbers
 $("about-listings").textContent = meta.listings_total.toLocaleString("id-ID");
@@ -48,7 +48,11 @@ map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
 const colorExpression = ["case", ["==", ["get", "cls"], -1], meta.empty_color, ["to-color", ["at", ["get", "cls"], ["literal", meta.colors]]]];
 const interactive = (base) => ["case", ["boolean", ["feature-state", "hover"], false], Math.min(base + 0.14, 1), ["boolean", ["feature-state", "selected"], false], Math.min(base + 0.14, 1), base];
 // the colours fade as you zoom in, so streets and buildings show through at street level
-const fillOpacity = (base) => (state.isolated === null ? ["interpolate", ["linear"], ["zoom"], 11.5, interactive(base), 14, interactive(base * 0.5)] : ["case", ["==", ["get", "cls"], state.isolated], 0.96, 0.1]);
+const budgetOpacity = () => { // areas that fit light up, areas that might fit are softer, the rest fade
+  const { amount, land } = state.budget, millions = amount / 1e6;
+  return ["case", ["==", ["get", "cls"], -1], 0.06, ["<=", ["*", ["get", "median"], land], millions], 0.95, ["<=", ["*", ["get", "p25"], land], millions], 0.55, 0.06];
+};
+const fillOpacity = (base) => (state.budget ? budgetOpacity() : state.isolated === null ? ["interpolate", ["linear"], ["zoom"], 11.5, interactive(base), 14, interactive(base * 0.5)] : ["case", ["==", ["get", "cls"], state.isolated], 0.96, 0.1]);
 const edgeWidth = ["case", ["boolean", ["feature-state", "selected"], false], 3.2, ["boolean", ["feature-state", "hover"], false], 2, 0];
 
 function hatch() {
@@ -60,21 +64,9 @@ function hatch() {
   return ctx.getImageData(0, 0, size, size);
 }
 
-// flood hazard is drawn as blue stripes, denser for higher hazard, so the price colour stays readable underneath
-const floodHatch = [["#7fb4e3", 1.2], ["#3f84c8", 1.8], ["#12418a", 2.6]];
-function stripes(color, width, size = 8) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  ctx.strokeStyle = color; ctx.lineWidth = width;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(size, size); ctx.moveTo(-size / 2, size / 2); ctx.lineTo(size / 2, size * 1.5); ctx.moveTo(size / 2, -size / 2); ctx.lineTo(size * 1.5, size / 2); ctx.stroke();
-  return ctx.getImageData(0, 0, size, size);
-}
-
 map.on("load", () => {
   const firstLabel = map.getStyle().layers.find((l) => l.type === "symbol")?.id; // place names of the basemap stay above the colours
   map.addImage("hatch", hatch());
-  floodHatch.forEach(([color, width], i) => map.addImage(`flood${i + 1}`, stripes(color, width)));
   map.addSource("kecamatan", { type: "geojson", data: kecamatan, promoteId: "code" });
   map.addSource("h3", { type: "geojson", data: h3, generateId: true });
   const fade = { "fill-opacity-transition": { duration: 250 } };
@@ -514,6 +506,8 @@ function resultCard(r, landArea) {
   legendLine.append(a, b);
   card.append(legendLine);
   card.append(askBlock(r));
+  const why = whyBlock(r);
+  if (why) card.append(why);
   const feature = kecamatan.features.find((f) => f.properties.name === r.area.kecamatan && (!r.area.city || f.properties.city === r.area.city))
     ?? kecamatan.features.find((f) => f.properties.name === r.area.kecamatan);
   const props = feature?.properties;
@@ -681,7 +675,8 @@ function setTab(tab) {
   document.querySelectorAll("#rank-tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   $("rank-view").hidden = tab !== "rank";
   $("compare-view").hidden = tab !== "compare";
-  $("rank-title").textContent = tab === "rank" ? "Peringkat harga daerah" : "Bandingkan daerah";
+  $("budget-view").hidden = tab !== "budget";
+  $("rank-title").textContent = { rank: "Peringkat harga daerah", compare: "Bandingkan daerah", budget: "Cari daerah sesuai budget" }[tab];
 }
 $("rank-tabs").addEventListener("click", (e) => { const tab = e.target.dataset?.tab; if (tab) setTab(tab); });
 
@@ -751,8 +746,9 @@ const LAYER_DEFS = [
   { key: "toll", group: "Transportasi", label: "Gerbang tol", swatches: [COLORS.toll], layers: [{ id: "toll", file: "layer_toll", type: "circle", poi: true, ...dot(8.5, 3, 4.5, 6, 8), color: COLORS.toll }] },
   { key: "rivers", group: "Lingkungan", label: "Sungai dan kanal", swatches: [COLORS.river], line: true, layers: [{ id: "rivers", file: "layer_rivers", type: "line", minzoom: 8.5,
     paint: { "line-color": COLORS.river, "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 2.6] } }] },
-  { key: "flood", group: "Lingkungan", label: "Rawan banjir (BNPB InaRISK)", swatches: ["#8fbfe8", "#3f84c8", "#12418a"], layers: [1, 2, 3].map((n) => (
-    { id: `f${n}`, file: "layer_flood", type: "fill", minzoom: 8.5, filter: ["==", ["get", "kind"], `flood${n}`], paint: { "fill-pattern": `flood${n}` } })) },
+  { key: "flood", group: "Lingkungan", label: "Rawan banjir (BNPB InaRISK)", swatches: ["#9ecae1", "#4f93d1", "#12418a"],
+    note: "Biru muda: rendah, biru: sedang, biru tua: tinggi. Tiga tingkat ini kami bagi sendiri dari indeks 0–1 milik BNPB, ketelitian sekitar 30 m. Area tanpa warna berarti tidak ditandai rawan di data BNPB, bukan pasti aman.",
+    layers: [{ id: "flood", image: "layer_flood", type: "raster", minzoom: 8.5, paint: { "raster-opacity": 1 } }] },
   place("mall", "Mal", "mall"), place("hospital", "Rumah sakit", "hospital"), place("university", "Kampus", "university"),
 ];
 const layerId = (def, layer) => `lyr-${def.key}-${layer.id}`;
@@ -762,11 +758,15 @@ function setLayer(def, on) {
   if (on) {
     for (const l of def.layers) {
       if (map.getLayer(layerId(def, l))) continue;
-      if (!map.getSource(l.file)) map.addSource(l.file, { type: "geojson", data: `data/${l.file}.geojson` });
-      const spec = { id: layerId(def, l), type: l.type, source: l.file, ...(l.minzoom && { minzoom: l.minzoom }), ...(l.filter && { filter: l.filter }), ...(l.layout && { layout: l.layout }) };
+      const source = l.image ?? l.file;
+      if (!map.getSource(source)) {
+        const [west, south, east, north] = meta.flood_bounds;
+        map.addSource(source, l.image ? { type: "image", url: `data/${l.image}.png`, coordinates: [[west, north], [east, north], [east, south], [west, south]] } : { type: "geojson", data: `data/${l.file}.geojson` });
+      }
+      const spec = { id: layerId(def, l), type: l.type, source, ...(l.minzoom && { minzoom: l.minzoom }), ...(l.filter && { filter: l.filter }), ...(l.layout && { layout: l.layout }) };
       spec.paint = l.type === "circle" ? { ...l.paint, "circle-color": l.color } : l.paint;
       // an area layer goes under every point and line layer already on the map, so switching order never hides a station behind it
-      const below = l.type === "fill" ? map.getStyle().layers.find((x) => x.id.startsWith("lyr-"))?.id ?? "kecamatan-labels" : "kecamatan-labels";
+      const below = l.type === "fill" || l.type === "raster" ? map.getStyle().layers.find((x) => x.id.startsWith("lyr-"))?.id ?? "kecamatan-labels" : "kecamatan-labels";
       map.addLayer(spec, below);
     }
   }
@@ -795,8 +795,10 @@ function poiTip(props) {
     const swatches = el("span", "sw");
     def.swatches.forEach((c) => { const i = el("i"); i.style.background = c; if (def.line) i.classList.add("line"); swatches.append(i); });
     chip.append(box, swatches, document.createTextNode(def.label));
-    box.addEventListener("change", () => { if (!map.getLayer("kecamatan-labels")) { box.checked = false; return; } setLayer(def, box.checked); }); // the map is not ready yet
+    box.addEventListener("change", () => { if (!map.getLayer("kecamatan-labels")) { box.checked = false; return; } setLayer(def, box.checked); if (note) note.hidden = !box.checked; }); // the map is not ready yet
     body.append(chip);
+    const note = def.note ? el("p", "layer-note", def.note) : null; // the note shows while its layer is on
+    if (note) { note.hidden = true; body.append(note); }
   }
   // the flood layer is a generalised copy of BNPB's data (published on the owner's decision, no terms found); the full map stays at the source
   body.append(el("div", "group", "Sumber"));
@@ -846,3 +848,83 @@ for (const input of document.querySelectorAll("#form input[type=number]")) {
   const blocked = ["e", "E", "+", "-", ...(input.step === "1" ? [".", ","] : [])];
   input.addEventListener("keydown", (e) => { if (blocked.includes(e.key)) e.preventDefault(); });
 }
+
+// ---- why this price: what pushes the price per m² up or down compared with a typical house in the data
+function whyBlock(r) {
+  if (!r.factors?.length) return null;
+  const box = el("details", "why"), list = el("ul");
+  box.append(el("summary", "", "Apa yang bikin harganya segitu?"));
+  box.append(el("p", "hint", "Dibanding rumah biasa di Jabodetabek (yang paling umum di data iklan kami), ini yang paling menaikkan atau menurunkan perkiraan harga per m² tanah:"));
+  for (const factor of r.factors) {
+    const line = factorLine(factor), item = el("li"), name = el("span", "name");
+    name.append(el("b", "", line.label), ...(line.hint ? [el("small", "", line.hint)] : []));
+    item.append(name, el("b", line.up ? "up" : "down", line.text));
+    list.append(item);
+  }
+  box.append(list);
+  if (r.factors.some((f) => f.code === "notes" && Math.abs(f.effect) >= 0.25)) box.append(el("p", "hint warn", "Catatanmu berpengaruh besar di perkiraan ini. Tulis fakta tentang rumahnya saja (kondisi, fasilitas), bukan kata-kata promosi."));
+  box.append(el("p", "hint", "Ini gambaran kasar. Faktor-faktor ini saling berkaitan, jadi persennya tidak bisa dijumlahkan."));
+  return box;
+}
+
+// ---- budget: which areas fit what you can spend
+function applyBudget(budget) {
+  state.budget = budget;
+  setIsolation(state.isolated);
+  $("budget-chip").hidden = !budget;
+  if (budget) $("budget-chip-text").textContent = `Budget ${rp(budget.amount)} · tanah ${budget.land} m²`;
+}
+$("budget-clear").addEventListener("click", () => { applyBudget(null); buildBudget(); });
+
+let budgetForm = { amount: "", land: "100", city: "" };
+function buildBudget() {
+  const view = $("budget-view");
+  const form = el("form", "budget-form"), amount = el("input"), land = el("input"), amountLabel = el("label", "", "Budget kamu"), landLabel = el("label", "", "Luas tanah yang dicari (m²)");
+  amount.type = "text"; amount.inputMode = "decimal"; amount.placeholder = "mis. 1,5 miliar"; amount.value = budgetForm.amount; amount.autocomplete = "off"; amount.maxLength = 30; amount.id = "budget-amount";
+  land.type = "number"; land.min = "15"; land.max = "5000"; land.step = "any"; land.value = budgetForm.land; land.id = "budget-land";
+  amountLabel.append(amount); landLabel.append(land);
+  const go = el("button", "primary wide", "Tampilkan di peta"), error = el("div", "ask-out bad");
+  go.type = "submit"; error.setAttribute("role", "alert");
+  form.append(amountLabel, landLabel, go, error);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const value = parseRupiah(amount.value), area = Number(land.value);
+    budgetForm = { ...budgetForm, amount: amount.value, land: land.value };
+    if (Number.isNaN(value)) { error.textContent = "Tulis budget dengan satuan, mis. 1,5 miliar atau 1500 juta."; return; }
+    if (!(area >= 15 && area <= 5000)) { error.textContent = "Luas tanah antara 15 dan 5.000 m²."; return; }
+    error.textContent = "";
+    applyBudget({ amount: value, land: area });
+    buildBudget();
+  });
+  view.replaceChildren(form);
+  if (!state.budget) return view.append(el("p", "hint", "Isi budget dan luas tanah, nanti daerah yang harganya cukup menyala di peta. Hitungannya kasar: harga umum per m² dikali luas tanah, sudah termasuk bangunan seperti di iklan."));
+
+  const { amount: budget, land: size } = state.budget;
+  const rows = priced.map((p) => ({ p, status: affordability(p, budget, size) }));
+  const count = (status) => rows.filter((row) => row.status === status).length;
+  const city = el("select"); city.id = "budget-city";
+  city.append(new Option("Semua kota / kabupaten", ""), ...cities.map((c) => new Option(c, c)));
+  city.value = budgetForm.city;
+  city.addEventListener("change", () => { budgetForm.city = city.value; buildBudget(); });
+  const listFor = (status, title) => {
+    const group = rows.filter((row) => row.status === status && (!budgetForm.city || row.p.city === budgetForm.city)).sort((a, b) => b.p.median - a.p.median);
+    const block = el("div", "budget-group");
+    block.append(el("div", "group-title", `${title} (${group.length})`));
+    const list = el("ol", "budget-list");
+    for (const { p } of group) {
+      const item = el("li"), button = el("button", "rank-row");
+      button.type = "button"; button.style.setProperty("--c", meta.colors[p.cls]);
+      const name = el("span", "name");
+      name.append(el("b", "", p.name), el("small", "", p.city ?? ""));
+      button.append(name, el("span", "val", `≈ ${rp(p.median * 1e6 * size)}`));
+      button.addEventListener("click", () => { if (isPhone()) closeRank(); goToArea(p.code); });
+      item.append(button); list.append(item);
+    }
+    block.append(list);
+    return block;
+  };
+  view.append(el("p", "cmp-verdict", `${count("fit")} daerah cukup, ${count("maybe")} mungkin, ${count("over")} di luar budget.`),
+              el("label", "", "Lihat di"), city, listFor("fit", "Cukup: harga umumnya muat"), listFor("maybe", "Mungkin: hanya yang di bawah harga umum"),
+              el("p", "hint", `${count("none")} daerah belum ada harganya, jadi tidak dihitung.`));
+}
+buildBudget();

@@ -110,3 +110,27 @@ export function compareAsk(ask, estimate) {
   }[where];
   return { diff, where, text };
 }
+
+const FACTORS = {
+  location: ["Lokasi dan akses transportasi", "jarak ke pusat kota, stasiun, dan tol"],
+  surroundings: ["Lingkungan sekitar", "jalan, sungai, tata guna lahan, dan risiko banjir"],
+  land: ["Luas tanah", "tanah yang luas biasanya lebih murah per m²"],
+  building: ["Luas bangunan", ""],
+  rooms: ["Jumlah kamar", "kamar tidur dan kamar mandi"],
+  floors: ["Jumlah lantai", ""],
+  notes: ["Catatan yang kamu tulis", "kata-kata seperti di iklan, mis. mewah atau cluster"],
+  details: ["Detail lain yang kamu isi", "listrik, carport, garasi, dan lainnya"],
+};
+
+/** One line of "why this price": the label and a short hint from the API's code, and the change in words ("naik 26%"). */
+export function factorLine(factor) {
+  const percent = Math.round(Math.abs(factor.effect) * 100), [label, hint] = FACTORS[factor.code] ?? [factor.label, ""];
+  return { label, hint, up: factor.effect > 0, percent, text: `${factor.effect > 0 ? "naik" : "turun"} ${percent}%` };
+}
+
+/** Does a typical house on `land` m² in this area fit a budget (rupiah)? "fit" by the area's usual price, "maybe" only by its cheaper quarter, "over", or "none" without a price. */
+export function affordability(area, budget, land) {
+  if (!(area.cls >= 0)) return "none";
+  const total = (millionsPerM2) => millionsPerM2 * 1e6 * land;
+  return total(area.median) <= budget ? "fit" : total(area.p25) <= budget ? "maybe" : "over";
+}

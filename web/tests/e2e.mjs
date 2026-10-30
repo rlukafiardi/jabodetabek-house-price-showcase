@@ -131,6 +131,27 @@ await page.click("#rank-list .rank-row");
 await page.waitForFunction((n) => document.getElementById("area").textContent.includes(n), {}, firstName);
 await page.click("#close-rank");
 
+// budget: a typed budget and land size light up the areas that fit and list them; a bare number asks for a unit; clearing restores the map
+await page.click("#open-rank");
+await page.click('#rank-tabs [data-tab="budget"]');
+await page.type("#budget-amount", "4500");
+await page.click("#budget-view .primary");
+assert.match(await text(page, "#budget-view .ask-out"), /satuan/);
+await page.$eval("#budget-amount", (i) => { i.value = ""; });
+await page.type("#budget-amount", "1,5 miliar");
+await page.click("#budget-view .primary");
+await page.waitForSelector("#budget-chip:not([hidden])");
+assert.match(await text(page, "#budget-view .cmp-verdict"), /\d+ daerah cukup, \d+ mungkin, \d+ di luar budget/);
+assert.ok(await page.$$eval("#budget-view .rank-row", (r) => r.length) > 5, "areas fit a 1,5 billion budget on 100 m²");
+assert.match(await page.evaluate(() => JSON.stringify(window.__map.getPaintProperty("kecamatan-fill", "fill-opacity"))), /"p25"/, "the map reads the budget");
+await page.evaluate(() => window.__map.jumpTo({ center: [106.85, -6.37], zoom: 9.3 }));
+await sleep(1200);
+await shot(page, "3f-budget");
+await page.click("#budget-clear");
+assert.equal(await page.$eval("#budget-chip", (n) => n.hidden), true);
+assert.doesNotMatch(await page.evaluate(() => JSON.stringify(window.__map.getPaintProperty("kecamatan-fill", "fill-opacity"))), /"p25"/);
+await page.click("#close-rank");
+
 // layers to consider: stations, rivers; hovering a station names it, tapping it does not move the pin
 await page.click("#layers .title");
 assert.equal(await page.$eval("#layers a.link", (a) => a.rel + " " + new URL(a.href).host), "noopener noreferrer inarisk.bnpb.go.id", "flood: a link out, not a copy of the data");
@@ -152,11 +173,13 @@ await page.waitForSelector(".maplibregl-popup.tip");
 assert.match(await text(page, ".maplibregl-popup.tip"), /Stasiun/);
 await page.mouse.click(mapBox.x + station.x, mapBox.y + station.y);
 assert.equal(await page.evaluate(() => JSON.stringify(window.__state.point)), pinBefore, "a click on a station must not move the pin");
-// flood hazard: drawn under the stations even when switched on last
+// flood hazard: the 30 m image, drawn under the stations even when switched on last, with its legend note saying what blank means
 await page.click('#layers input[data-layer="flood"]');
-await page.waitForFunction(() => window.__map.queryRenderedFeatures({ layers: ["lyr-flood-f1", "lyr-flood-f2", "lyr-flood-f3"] }).length > 0, { timeout: 30000 });
+await page.waitForFunction(() => window.__map.getLayer("lyr-flood-flood") && window.__map.isSourceLoaded("layer_flood"), { timeout: 30000 });
 const order = await page.evaluate(() => window.__map.getStyle().layers.map((l) => l.id));
-assert.ok(order.indexOf("lyr-flood-f1") < order.indexOf("lyr-stations-stations"), "the flood area must sit under the station points");
+assert.ok(order.indexOf("lyr-flood-flood") < order.indexOf("lyr-stations-stations"), "the flood image must sit under the station points");
+assert.match(await text(page, "#layers .layer-note"), /bukan pasti aman/);
+await sleep(800);
 await shot(page, "3e-flood");
 await page.click('#layers input[data-layer="flood"]');
 await page.click('#layers input[data-layer="rivers"]');
@@ -205,14 +228,20 @@ assert.equal(await page.$eval("#form", (f) => f.hidden), true, "the result is it
 await sleep(1200);
 await shot(page, "5-estimate");
 
+// why this price: the factors from the API, named in Indonesian with a signed percent
+await page.click(".why summary");
+const factors = await page.$$eval(".why li", (li) => li.map((n) => n.textContent));
+assert.ok(factors.length >= 1 && factors.every((f) => /(naik|turun) \d+%$/.test(f)), `factors: ${factors}`);
+await shot(page, "5c-why");
+
 // check an ad price: a typed price is read and compared; a bare number asks for a unit
 await page.type(".ask input", "4500");
 await page.click(".ask .ghost");
-assert.match(await text(page, ".ask-out"), /satuan/);
+assert.match(await text(page, "#result .ask-out"), /satuan/);
 await page.$eval(".ask input", (i) => { i.value = ""; });
 await page.type(".ask input", "4,6 miliar");
 await page.click(".ask .ghost");
-assert.match(await text(page, ".ask-out"), /Harga iklan ini .*perkiraan/);
+assert.match(await text(page, "#result .ask-out"), /Harga iklan ini .*perkiraan/);
 await shot(page, "5b-ask");
 
 // share: the link carries the form and opens the same estimate on a fresh page

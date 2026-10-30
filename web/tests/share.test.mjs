@@ -46,3 +46,19 @@ test("a broken or edited link is ignored, not half-applied", () => {
 test("notes in a link are capped", () => {
   assert.equal(readShared(shareQuery({ ...body, notes: "x".repeat(900) })).notes.length, 300);
 });
+
+import { affordability, factorLine } from "../format.mjs";
+
+test("factorLine turns an API factor into words in Indonesian", () => {
+  assert.deepEqual(factorLine({ code: "location", effect: 0.261 }), { label: "Lokasi dan akses transportasi", hint: "jarak ke pusat kota, stasiun, dan tol", up: true, percent: 26, text: "naik 26%" });
+  assert.equal(factorLine({ code: "land", effect: -0.249 }).text, "turun 25%");
+  assert.equal(factorLine({ code: "new_thing", effect: 0.1, label: "Something" }).label, "Something");
+});
+
+test("affordability compares a typical house on the land size with the budget", () => {
+  const area = { cls: 3, median: 12, p25: 8 };
+  assert.equal(affordability(area, 1.3e9, 100), "fit"); // 12 M x 100 = 1.2 billion
+  assert.equal(affordability(area, 1.0e9, 100), "maybe"); // only the cheaper quarter, 0.8 billion
+  assert.equal(affordability(area, 0.5e9, 100), "over");
+  assert.equal(affordability({ cls: -1, median: null, p25: null }, 9e12, 100), "none");
+});

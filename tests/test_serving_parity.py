@@ -29,3 +29,13 @@ def test_serving_features_equal_training_features():
                       specs={c: row[c] for c in SPEC_COLUMNS if pd.notna(row[c])})
         served = estimator.features(house)[columns].iloc[0].to_numpy(float)
         np.testing.assert_allclose(served, row[columns].to_numpy(float), rtol=1e-9, atol=1e-9, equal_nan=True, err_msg=str(row.slug))
+
+
+def test_factors_cover_the_inputs_and_name_only_what_the_user_filled_in():
+    estimator = Estimator(MODEL_DIR)
+    named = {c for cols in estimator.factor_groups().values() for c in cols}
+    assert set(estimator.columns) - named == {"age_days"}, "every model input belongs to a group (age_days is fixed, not the user's)"
+    plain = estimator.estimate(House(lat=-6.40, lon=106.82, land_area=120, building_area=90, bedrooms=3, bathrooms=2))["factors"]
+    assert not {f["code"] for f in plain} & {"notes", "details", "floors"}, "a group the user left empty is not explained"
+    assert all(abs(f["effect"]) >= 0.03 for f in plain) and [abs(f["effect"]) for f in plain] == sorted((abs(f["effect"]) for f in plain), reverse=True)
+    assert len(plain) <= 4
