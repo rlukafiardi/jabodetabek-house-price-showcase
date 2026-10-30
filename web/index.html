@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jabodetabek House Prices</title>
+  <meta name="description" content="Asking price per m² of land across Jabodetabek, and a price estimate with a range for your house.">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Jabodetabek house prices</h1>
+    <p>Where asking prices per m² of land sit, and what a house like yours would ask.</p>
+  </header>
+  <noscript><p class="notice">This page needs JavaScript for the map and the estimate.</p></noscript>
+  <main>
+    <section id="panel" aria-labelledby="estimate-title">
+      <h2 id="estimate-title">Estimate a house</h2>
+      <p class="hint">Click the map to place the house, or type its coordinates.</p>
+      <form id="form" novalidate>
+        <fieldset>
+          <legend>Location</legend>
+          <div class="row">
+            <label>Latitude <input id="lat" type="number" step="any" min="-6.8" max="-5.9" inputmode="decimal" required></label>
+            <label>Longitude <input id="lon" type="number" step="any" min="106.4" max="107.3" inputmode="decimal" required></label>
+          </div>
+          <button type="button" id="locate" class="secondary">Use my location</button>
+        </fieldset>
+        <fieldset>
+          <legend>The house</legend>
+          <div class="row">
+            <label>Land area (m²) <input id="land_area" type="number" min="15" max="5000" step="any" inputmode="decimal" required></label>
+            <label>Building area (m²) <input id="building_area" type="number" min="15" max="3000" step="any" inputmode="decimal" required></label>
+          </div>
+          <div class="row">
+            <label>Bedrooms <input id="bedrooms" type="number" min="1" max="8" step="1" inputmode="numeric" required></label>
+            <label>Bathrooms <input id="bathrooms" type="number" min="1" max="8" step="1" inputmode="numeric" required></label>
+            <label>Floors <input id="floors" type="number" min="1" max="6" step="1" inputmode="numeric" placeholder="optional"></label>
+          </div>
+          <label>Notes <span class="optional">(optional)</span>
+            <textarea id="notes" rows="3" maxlength="2000" placeholder="Written like a listing, e.g. new, furnished, in a gated cluster, wide road"></textarea>
+          </label>
+          <p class="hint">Notes are read like a listing description and can move the estimate a lot. Keep them to facts about the house.</p>
+        </fieldset>
+        <details>
+          <summary>More details (optional)</summary>
+          <div class="row">
+            <label>Electricity (VA) <input id="electricity_va" type="number" min="450" max="40000" step="50" inputmode="numeric"></label>
+            <label>Carport spaces <input id="carport" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
+          </div>
+          <div class="row">
+            <label>Car access (cars) <input id="car_access" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
+            <label>Garage spaces <input id="garage" type="number" min="0" max="10" step="1" inputmode="numeric"></label>
+            <label>Maid rooms <input id="maid_rooms" type="number" min="0" max="5" step="1" inputmode="numeric"></label>
+          </div>
+          <div class="row">
+            <label>Furnished
+              <select id="furnished_level"><option value="">unknown</option><option value="0">not furnished</option><option value="1">semi-furnished</option><option value="2">furnished</option></select>
+            </label>
+            <label>Water
+              <select id="water_pam"><option value="">unknown</option><option value="1">piped (PAM)</option><option value="0">groundwater</option></select>
+            </label>
+          </div>
+        </details>
+        <button type="submit" id="submit">Estimate price</button>
+      </form>
+      <div id="result" role="status" aria-live="polite"></div>
+    </section>
+    <section id="mapwrap" aria-label="Price map">
+      <div id="map"></div>
+      <div id="toggle" role="group" aria-label="Map view">
+        <button type="button" data-view="kecamatan" aria-pressed="true">Kecamatan</button>
+        <button type="button" data-view="h3" aria-pressed="false">Finer view (H3)</button>
+      </div>
+      <div id="hover" aria-live="polite">Hover or tap an area to see its price.</div>
+      <div id="legend"></div>
+    </section>
+  </main>
+  <footer>
+    <details>
+      <summary>About this map and estimate</summary>
+      <p>The map shows the median asking price per m² of land, from about <span id="about-listings">4,000</span> house listings of an Indonesian property portal
+        (<span id="about-window"></span>). A price is shown only where an area has at least <span id="about-min">5</span> listings. Colours are equal-count classes,
+        so outer areas stay readable next to central Jakarta. An outlined kecamatan mixes premium and ordinary pockets, so its median is not one typical price.
+        No listing-level data is published.</p>
+      <p>The estimate is the mean of three models on location, size, rooms, nearby transport, road and land-use context, and the notes. It predicts an
+        <strong>asking price</strong>, not a sale price or a valuation. On listings the model never saw, half of the estimates were within <span id="about-error"></span>
+        of the asking price; the likely range held <span id="about-likely"></span> of them and the possible range <span id="about-possible"></span>. Plots over 300 m² are
+        harder to price and get wider ranges. Remote kecamatan have few listings, so estimates there are less certain.</p>
+      <p>Map data © OpenStreetMap contributors, © OpenMapTiles, served by OpenFreeMap. Boundaries: BIG. Flood hazard: BNPB InaRISK.
+        <a href="https://github.com/rlukafiardi/jabodetabek-house-price-showcase">Method, results and code</a>.</p>
+    </details>
+  </footer>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous" defer></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
