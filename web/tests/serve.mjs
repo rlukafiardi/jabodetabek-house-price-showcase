@@ -1,4 +1,4 @@
-// Static server for the site that sends the same security headers as the host (Cloudflare Pages reads web/_headers), so the browser test runs under the real policy.
+// Static server for the site that sends the same security headers as the host (Netlify reads web/_headers), so the browser test runs under the real policy.
 // Adds the local API origins to connect-src for tests. Usage: node tests/serve.mjs [port] [folder]
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
