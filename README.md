@@ -30,13 +30,16 @@ people who have never seen the data, so it avoids statistics words and says what
 ![Flood hazard layer](reports/figures/site_flood.png)
 
 - **Estimate in three steps.** Place a pin (click, search, or the browser's location), describe the house, read the result: a price, the range it usually falls
-  in, and a bar that shows the wider possible range. Beside it: **what pushes the price up or down** compared with a typical house, a box to **compare an
-  ad price** with the estimate, and a **share link** that reopens the same estimate. Warnings (take-over listings, auctions, large plots) are plain
+  in, and a bar that shows the wider possible range. Beside it: **what pushes the price up or down** compared with a typical house (in words, "raises it a lot" or "lowers it a
+  little", because percentages were hard to read), the **nearest toll gates, stations and bus stops** with straight-line distances (only those within
+  5 km, or 1 km for bus stops, so a remote pin shows "none within 5 km" instead of a far one), a box to **compare an ad price** with the estimate, and a
+  **share link** that reopens the same estimate. Warnings (take-over listings, auctions, large plots) are plain
   sentences, and the form refuses impossible values (no negative rooms) with a message under the field.
 
 ![An estimate and what drives it](reports/figures/site_estimate.png)
 
-- **Phone first.** Panels become bottom sheets and the toolbar stays on one row. A browser test drives all of this in real Chrome, on a phone viewport too
+- **Guide and About.** A first-visit guide (reopened by "Panduan") and an About panel ("Tentang") with the sources, the method and the limits.
+- **Phone first.** Panels become bottom sheets. A browser test drives all of this in real Chrome, on a phone viewport too
   ([web/](web/)), and runs against the live site under its real security headers.
 
 ![The estimate sheet on a phone](reports/figures/site_phone.png)

@@ -28,7 +28,8 @@
       <button type="button" data-view="h3" aria-pressed="false" title="Kotak area sekitar 5 km², lebih rinci dari kecamatan">Per area 5 km²</button>
     </div>
     <button type="button" id="open-rank" class="bar-btn" aria-expanded="false" aria-controls="rank" title="Peringkat harga daerah">Peringkat</button>
-    <button type="button" id="help" class="round" aria-label="Cara memakai peta ini" aria-controls="welcome" aria-expanded="false">?</button>
+    <button type="button" id="help" class="bar-btn" aria-controls="welcome" aria-expanded="false" title="Cara memakai peta ini">Panduan</button>
+    <button type="button" id="open-about" class="bar-btn" aria-expanded="false" aria-controls="about" title="Sumber data, cara kerja, dan batasannya">Tentang</button>
     <button type="button" id="open-estimate" class="primary" aria-expanded="false" aria-controls="estimate">Coba Perkiraan Harga</button>
   </header>
 
@@ -158,18 +159,24 @@
       </section>
     </form>
     <div id="result" role="status" aria-live="polite"></div>
-    <details class="about">
-      <summary>Tentang peta dan perkiraan ini</summary>
-      <p>Peta ini dibuat dari sekitar <span id="about-listings">4.000</span> iklan rumah dijual di sebuah portal properti Indonesia (<span id="about-window"></span>).
-        Warna menunjukkan harga umum per m² tanah di tiap daerah, yaitu harga di tengah-tengah: separuh iklan lebih murah, separuh lebih mahal.
-        Daerah dengan iklan kurang dari <span id="about-min">5</span> belum diberi harga. Data per iklan tidak dipublikasikan.</p>
-      <p>Perkiraan harga dihitung komputer dari lokasi, ukuran rumah, jarak ke transportasi, dan catatanmu. "Harga" di sini adalah harga di iklan, bukan harga jual sebenarnya.
-        Dalam pengujian, perkiraan biasanya meleset sekitar <span id="about-error"></span> dari harga iklan, jadi anggap sebagai gambaran awal.
-        Tanah di atas 300 m² dan daerah dengan iklan sedikit lebih susah ditebak.</p>
-      <p>Data peta © kontributor OpenStreetMap, © OpenMapTiles lewat OpenFreeMap. Layer stasiun, halte, tol, sungai, mal, rumah sakit, dan kampus juga dari OpenStreetMap (lisensi ODbL), dan bisa belum lengkap. Layer rawan banjir dari BNPB InaRISK (detail sekitar 30 m). Tingkat rendah, sedang, dan tinggi dikelompokkan dari skor 0–1 BNPB, bukan kategori resmi, dan area tanpa warna belum tentu aman. Sebelum beli rumah, cek juga langsung ke lokasi dan di peta resmi BNPB.</p>
-      <p>Data rumah dan catatan yang kamu isi dikirim ke server kami hanya untuk menghitung perkiraan, dan tidak disimpan. Kalau kamu mencari alamat, teksnya dikirim ke layanan pencarian OpenStreetMap (Nominatim). Batas wilayah: BIG. Rawan banjir: BNPB InaRISK.
-        <a href="https://github.com/rlukafiardi/jabodetabek-house-price-showcase">Cara kerja, hasil, dan kode</a>.</p>
-    </details>
+  </aside>
+
+  <aside id="about" hidden aria-labelledby="about-title">
+    <div class="head">
+      <h2 id="about-title">Tentang peta dan perkiraan ini</h2>
+      <button type="button" id="close-about" class="icon" aria-label="Tutup">
+        <svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p>Peta ini dibuat dari sekitar <span id="about-listings">4.000</span> iklan rumah dijual di sebuah portal properti Indonesia (<span id="about-window"></span>).
+      Warna menunjukkan harga umum per m² tanah di tiap daerah, yaitu harga di tengah-tengah: separuh iklan lebih murah, separuh lebih mahal.
+      Daerah dengan iklan kurang dari <span id="about-min">5</span> belum diberi harga. Data per iklan tidak dipublikasikan.</p>
+    <p>Perkiraan harga dihitung komputer dari lokasi, ukuran rumah, jarak ke transportasi, dan catatanmu. "Harga" di sini adalah harga di iklan, bukan harga jual sebenarnya.
+      Dalam pengujian, perkiraan biasanya meleset sekitar <span id="about-error"></span> dari harga iklan, jadi anggap sebagai gambaran awal.
+      Tanah di atas 300 m² dan daerah dengan iklan sedikit lebih susah ditebak.</p>
+    <p>Data peta © kontributor OpenStreetMap, © OpenMapTiles lewat OpenFreeMap. Layer stasiun, halte, tol, sungai, mal, rumah sakit, dan kampus juga dari OpenStreetMap (lisensi ODbL), dan bisa belum lengkap. Layer rawan banjir dari BNPB InaRISK (detail sekitar 30 m). Tingkat rendah, sedang, dan tinggi dikelompokkan dari skor 0–1 BNPB, bukan kategori resmi, dan area tanpa warna belum tentu aman. Sebelum beli rumah, cek juga langsung ke lokasi dan di peta resmi BNPB.</p>
+    <p>Data rumah dan catatan yang kamu isi dikirim ke server kami hanya untuk menghitung perkiraan, dan tidak disimpan. Kalau kamu mencari alamat, teksnya dikirim ke layanan pencarian OpenStreetMap (Nominatim). Batas wilayah: BIG. Rawan banjir: BNPB InaRISK.
+      <a href="https://github.com/rlukafiardi/jabodetabek-house-price-showcase">Cara kerja, hasil, dan kode</a>.</p>
   </aside>
 
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous" defer></script>

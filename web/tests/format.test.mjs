@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { classLabels, edgeLabel, errorMessage, millions, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "../format.mjs";
+import { classLabels, distanceLabel, edgeLabel, errorMessage, factorLine, nearest, millions, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "../format.mjs";
 
 test("rp uses miliar and juta with a decimal comma", () => {
   assert.equal(rp(4_903_966_639), "Rp 4,90 miliar");
@@ -54,4 +54,24 @@ test("errorMessage in Indonesian for codes, validation lists, rate limits and se
 
 test("every warning code the API can send has a translation", () => {
   assert.deepEqual(Object.keys(WARNINGS).sort(), ["auction", "large_plot", "take_over"]);
+});
+
+test("factorLine says direction and strength in words, never a number", () => {
+  assert.equal(factorLine({ code: "location", effect: 0.4 }).text, "Menaikkan banyak");
+  assert.equal(factorLine({ code: "land", effect: -0.15 }).text, "Menurunkan cukup");
+  assert.equal(factorLine({ code: "rooms", effect: 0.03 }).text, "Menaikkan sedikit");
+  assert.ok(!/\d/.test(factorLine({ code: "land", effect: -0.31 }).text));
+});
+
+test("distanceLabel uses metres under a kilometre and a decimal comma above", () => {
+  assert.equal(distanceLabel(847), "850 m");
+  assert.equal(distanceLabel(2340), "2,3 km");
+});
+
+const point = (name, lon, lat) => ({ properties: { name, kind: "toll" }, geometry: { coordinates: [lon, lat] } });
+test("nearest keeps only points in range, nearest first, and merges points of one place", () => {
+  const spots = [point("far", 106.9, -6.2), point("a", 106.801, -6.2), point("a-booth", 106.8012, -6.2), point("b", 106.81, -6.2), point("c", 106.82, -6.2), point("d", 106.83, -6.2)];
+  const found = nearest(spots, -6.2, 106.8, { maxM: 5000, count: 3, mergeM: 500 });
+  assert.deepEqual(found.map((p) => p.name), ["a", "b", "c"]);
+  assert.deepEqual(nearest(spots, -6.2, 107.5, { maxM: 5000 }), [], "nothing in range gives an empty list, not the closest far one");
 });

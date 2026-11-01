@@ -122,10 +122,35 @@ const FACTORS = {
   details: ["Detail lain yang kamu isi", "listrik, carport, garasi, dan lainnya"],
 };
 
-/** One line of "why this price": the label and a short hint from the API's code, and the change in words ("naik 26%"). */
+/** One line of "why this price": the label and a short hint from the API's code, and the direction and strength in words, no numbers. */
 export function factorLine(factor) {
-  const percent = Math.round(Math.abs(factor.effect) * 100), [label, hint] = FACTORS[factor.code] ?? [factor.label, ""];
-  return { label, hint, up: factor.effect > 0, percent, text: `${factor.effect > 0 ? "naik" : "turun"} ${percent}%` };
+  const size = Math.abs(factor.effect), [label, hint] = FACTORS[factor.code] ?? [factor.label, ""];
+  const strength = size >= 0.25 ? "banyak" : size >= 0.1 ? "cukup" : "sedikit";
+  return { label, hint, up: factor.effect > 0, strength, text: `${factor.effect > 0 ? "Menaikkan" : "Menurunkan"} ${strength}` };
+}
+
+/** Distance in metres, as people say it: "850 m", "2,3 km". */
+export function distanceLabel(metres) {
+  return metres < 1000 ? `${Math.round(metres / 10) * 10} m` : `${(metres / 1000).toFixed(1).replace(".", ",")} km`;
+}
+
+const EARTH_RADIUS_M = 6371000;
+const distanceM = (lat1, lon1, lat2, lon2) => {
+  const rad = Math.PI / 180, a = Math.sin(((lat2 - lat1) * rad) / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lon2 - lon1) * rad) / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
+};
+
+/** The `count` nearest GeoJSON points within `maxM` metres of a spot, straight-line, nearest first. Points closer than `mergeM` to one already picked are the
+ *  same place (the booths of one toll gate, the two sides of a bus stop) and are skipped. Returns [] when nothing is in range. */
+export function nearest(features, lat, lon, { maxM, count = 3, mergeM = 0 }) {
+  const near = features.map((f) => ({ name: f.properties.name, kind: f.properties.kind, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] }))
+    .map((p) => ({ ...p, metres: distanceM(lat, lon, p.lat, p.lon) })).filter((p) => p.metres <= maxM).sort((a, b) => a.metres - b.metres);
+  const picked = [];
+  for (const p of near) {
+    if (picked.length === count) break;
+    if (!picked.some((q) => distanceM(q.lat, q.lon, p.lat, p.lon) < mergeM)) picked.push(p);
+  }
+  return picked;
 }
 
 /** Does a typical house on `land` m² in this area fit a budget (rupiah)? "fit" by the area's usual price, "maybe" only by its cheaper quarter, "over", or "none" without a price. */

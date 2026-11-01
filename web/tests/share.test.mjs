@@ -50,8 +50,8 @@ test("notes in a link are capped", () => {
 import { affordability, factorLine } from "../format.mjs";
 
 test("factorLine turns an API factor into words in Indonesian", () => {
-  assert.deepEqual(factorLine({ code: "location", effect: 0.261 }), { label: "Lokasi dan akses transportasi", hint: "jarak ke pusat kota, stasiun, dan tol", up: true, percent: 26, text: "naik 26%" });
-  assert.equal(factorLine({ code: "land", effect: -0.249 }).text, "turun 25%");
+  assert.deepEqual(factorLine({ code: "location", effect: 0.261 }), { label: "Lokasi dan akses transportasi", hint: "jarak ke pusat kota, stasiun, dan tol", up: true, strength: "banyak", text: "Menaikkan banyak" });
+  assert.equal(factorLine({ code: "land", effect: -0.249 }).text, "Menurunkan cukup");
   assert.equal(factorLine({ code: "new_thing", effect: 0.1, label: "Something" }).label, "Something");
 });
 
