@@ -11,5 +11,5 @@
 /web
 /showcase
 **/node_modules
-**/.cloudflare*
+**/.netlify*
 **/*.env

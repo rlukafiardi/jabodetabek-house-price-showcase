@@ -6,6 +6,5 @@ __pycache__/
 web/node_modules/
 web/dist/
 *.env
-.cloudflare*
-.wrangler/
+.netlify*
 .gcloud/
