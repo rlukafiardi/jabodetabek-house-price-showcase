@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { affordability, classLabels, compareAsk, edgeLabel, factorLine, errorMessage, millions, parseRupiah, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "./format.mjs";
+import { affordability, classLabels, compareAsk, distanceLabel, edgeLabel, factorLine, nearest, errorMessage, millions, parseRupiah, perM2, perM2Range, rp, rpRange, versusMedian, WARNINGS } from "./format.mjs";
 import { readShared, shareQuery } from "./share.mjs";
 import { BBOX, geocoderUrl, matchAreas, parsePlaces } from "./search.mjs";
 
@@ -38,7 +38,7 @@ $("about-min").textContent = meta.min_listings;
 $("about-error").textContent = pct(meta.model.holdout_median_error);
 
 // ---- map
-const map = new maplibregl.Map({ container: "map", style: STYLE, bounds: [[106.35, -6.80], [107.30, -5.95]], fitBoundsOptions: { padding: isPhone() ? { top: 130, left: 12, right: 12, bottom: 110 } : { top: 70, left: 20, right: 20, bottom: 20 } },
+const map = new maplibregl.Map({ container: "map", style: STYLE, bounds: [[106.35, -6.80], [107.30, -5.95]], fitBoundsOptions: { padding: isPhone() ? { top: 175, left: 12, right: 12, bottom: 110 } : { top: 70, left: 20, right: 20, bottom: 20 } },
   attributionControl: { compact: true }, maxBounds: [[105.8, -7.4], [107.9, -5.5]] });
 window.__map = map; // handles for the end-to-end test (tests/e2e.mjs)
 window.__state = state;
@@ -411,9 +411,9 @@ document.addEventListener("click", (e) => { if (!$("search").contains(e.target))
 // keep the map's visible centre clear of the open panel, so a pin is never hidden behind it
 function fitPadding() {
   if (!state.estimateOpen) return map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 300 });
-  map.easeTo({ padding: isPhone() ? { top: 110, bottom: Math.round(window.innerHeight * 0.6), left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 410 }, duration: 300 });
+  map.easeTo({ padding: isPhone() ? { top: 160, bottom: Math.round(window.innerHeight * 0.6), left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 410 }, duration: 300 });
 }
-const syncPanels = () => document.body.classList.toggle("panel-open", state.estimateOpen || !$("rank").hidden);
+const syncPanels = () => document.body.classList.toggle("panel-open", state.estimateOpen || !$("rank").hidden || !$("about").hidden);
 function showStep(n) {
   state.step = n;
   document.querySelectorAll("#form .step").forEach((section) => { section.hidden = Number(section.dataset.step) !== n; });
@@ -441,6 +441,7 @@ $("form").addEventListener("invalid", (e) => {
 function openEstimate() {
   dismissWelcome();
   closeRank();
+  closeAbout();
   state.estimateOpen = true;
   $("estimate").hidden = false;
   syncPanels();
@@ -508,6 +509,7 @@ function resultCard(r, landArea) {
   card.append(askBlock(r));
   const why = whyBlock(r);
   if (why) card.append(why);
+  if (state.point) card.append(nearbyBlock(state.point));
   const feature = kecamatan.features.find((f) => f.properties.name === r.area.kecamatan && (!r.area.city || f.properties.city === r.area.city))
     ?? kecamatan.features.find((f) => f.properties.name === r.area.kecamatan);
   const props = feature?.properties;
@@ -590,6 +592,7 @@ function buildRank() {
 function openRank(tab = "rank") {
   dismissWelcome();
   setTab(tab);
+  closeAbout();
   if (state.estimateOpen) closeEstimate();
   $("rank").hidden = false;
   syncPanels();
@@ -603,6 +606,24 @@ function closeRank() {
 }
 $("open-rank").addEventListener("click", () => ($("rank").hidden ? openRank() : closeRank()));
 $("close-rank").addEventListener("click", closeRank);
+
+// ---- the about panel: sources, method and limits, kept out of the estimate form
+function openAbout() {
+  dismissWelcome();
+  closeRank();
+  if (state.estimateOpen) closeEstimate();
+  $("about").hidden = false;
+  syncPanels();
+  $("open-about").setAttribute("aria-expanded", "true");
+  if (isPhone()) $("area").hidden = true;
+}
+function closeAbout() {
+  $("about").hidden = true;
+  syncPanels();
+  $("open-about").setAttribute("aria-expanded", "false");
+}
+$("open-about").addEventListener("click", () => ($("about").hidden ? openAbout() : closeAbout()));
+$("close-about").addEventListener("click", closeAbout);
 $("rank-city").addEventListener("change", (e) => { rank.city = e.target.value; buildRank(); });
 $("rank-sort").addEventListener("click", (e) => {
   const sort = e.target.dataset?.sort;
@@ -735,20 +756,20 @@ const COLORS = { krl: "#1f4fb4", mrt: "#0a7d5a", lrt: "#7b3fb8", busway: "#0f8f9
 const KIND_LABEL = { krl: "Stasiun kereta", mrt: "Stasiun MRT", lrt: "Stasiun LRT", busway: "Halte Transjakarta", bus: "Halte bus", toll: "Gerbang tol", mall: "Mal", hospital: "Rumah sakit", university: "Kampus" };
 const dot = (min, a, b, c, d) => ({ minzoom: min, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, a, 11, b, 14, c, 16, d], "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
 const STATION_COLOR = ["match", ["get", "kind"], "krl", COLORS.krl, "mrt", COLORS.mrt, "lrt", COLORS.lrt, "#555555"];
-const place = (key, label, kind) => ({ key, group: "Fasilitas", label, swatches: [COLORS[kind]], layers: [{ id: key, file: "layer_places", type: "circle", filter: ["==", ["get", "kind"], kind], poi: true, ...dot(9.5, 2, 3.5, 5.5, 7), color: COLORS[kind] }] });
+const place = (key, label, kind) => ({ key, group: "Fasilitas", label, swatches: [COLORS[kind]], layers: [{ id: key, file: "layer_places", type: "circle", filter: ["==", ["get", "kind"], kind], poi: true, ...dot(7, 2, 3.5, 5.5, 7), color: COLORS[kind] }] });
 const LAYER_DEFS = [
   { key: "stations", group: "Transportasi", label: "Stasiun kereta, MRT, LRT", swatches: [COLORS.krl, COLORS.mrt, COLORS.lrt], layers: [
-    { id: "rail", file: "layer_rail", type: "line", minzoom: 8.5, paint: { "line-color": "#5b6573", "line-width": 1.3, "line-opacity": 0.8 } },
-    { id: "stations", file: "layer_stations", type: "circle", poi: true, ...dot(8.5, 4, 5, 7, 9), color: STATION_COLOR },
+    { id: "rail", file: "layer_rail", type: "line", minzoom: 7, paint: { "line-color": "#5b6573", "line-width": 1.3, "line-opacity": 0.8 } },
+    { id: "stations", file: "layer_stations", type: "circle", poi: true, ...dot(7, 4, 5, 7, 9), color: STATION_COLOR },
     { id: "names", file: "layer_stations", type: "symbol", minzoom: 12, layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1], "text-anchor": "top", "text-max-width": 8 },
       paint: { "text-color": "#1c1a18", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.5 } } ] },
-  { key: "busway", group: "Transportasi", label: "Halte bus (Transjakarta dan lainnya)", swatches: [COLORS.busway], layers: [{ id: "busway", file: "layer_busway", type: "circle", poi: true, ...dot(9, 1.6, 2.6, 4.2, 6), color: COLORS.busway }] },
-  { key: "toll", group: "Transportasi", label: "Gerbang tol", swatches: [COLORS.toll], layers: [{ id: "toll", file: "layer_toll", type: "circle", poi: true, ...dot(8.5, 3, 4.5, 6, 8), color: COLORS.toll }] },
-  { key: "rivers", group: "Lingkungan", label: "Sungai dan kanal", swatches: [COLORS.river], line: true, layers: [{ id: "rivers", file: "layer_rivers", type: "line", minzoom: 8.5,
+  { key: "busway", group: "Transportasi", label: "Halte bus (Transjakarta dan lainnya)", swatches: [COLORS.busway], layers: [{ id: "busway", file: "layer_busway", type: "circle", poi: true, ...dot(7, 1.6, 2.6, 4.2, 6), color: COLORS.busway }] },
+  { key: "toll", group: "Transportasi", label: "Gerbang tol", swatches: [COLORS.toll], layers: [{ id: "toll", file: "layer_toll", type: "circle", poi: true, ...dot(7, 3, 4.5, 6, 8), color: COLORS.toll }] },
+  { key: "rivers", group: "Lingkungan", label: "Sungai dan kanal", swatches: [COLORS.river], line: true, layers: [{ id: "rivers", file: "layer_rivers", type: "line", minzoom: 7,
     paint: { "line-color": COLORS.river, "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 2.6] } }] },
   { key: "flood", group: "Lingkungan", label: "Rawan banjir (BNPB InaRISK)", swatches: ["#9ecae1", "#4f93d1", "#12418a"],
     note: "Makin tua birunya, makin rawan banjir. Data dari BNPB (InaRISK), detail sampai sekitar 30 m. Tingkat rendah, sedang, dan tinggi dikelompokkan dari skor 0–1 BNPB, bukan kategori resmi. Area tanpa warna = tidak tercatat rawan, belum tentu aman.",
-    layers: [{ id: "flood", image: "layer_flood", type: "raster", minzoom: 8.5, paint: { "raster-opacity": 1 } }] },
+    layers: [{ id: "flood", image: "layer_flood", type: "raster", minzoom: 7, paint: { "raster-opacity": 1 } }] },
   place("mall", "Mal", "mall"), place("hospital", "Rumah sakit", "hospital"), place("university", "Kampus", "university"),
 ];
 const layerId = (def, layer) => `lyr-${def.key}-${layer.id}`;
@@ -853,8 +874,8 @@ for (const input of document.querySelectorAll("#form input[type=number]")) {
 function whyBlock(r) {
   if (!r.factors?.length) return null;
   const box = el("details", "why"), list = el("ul");
-  box.append(el("summary", "", "Apa yang bikin harganya segitu?"));
-  box.append(el("p", "hint", "Dibanding rumah biasa di Jabodetabek (yang paling umum di data iklan kami), ini yang paling menaikkan atau menurunkan perkiraan harga per m² tanah:"));
+  box.append(el("summary", "", "Apa yang memengaruhi harga ini?"));
+  box.append(el("p", "hint", "Dibanding rumah rata-rata di Jabodetabek, ini hal-hal yang paling mendorong perkiraan harga per m² tanah naik atau turun:"));
   for (const factor of r.factors) {
     const line = factorLine(factor), item = el("li"), name = el("span", "name");
     name.append(el("b", "", line.label), ...(line.hint ? [el("small", "", line.hint)] : []));
@@ -863,7 +884,32 @@ function whyBlock(r) {
   }
   box.append(list);
   if (r.factors.some((f) => f.code === "notes" && Math.abs(f.effect) >= 0.25)) box.append(el("p", "hint warn", "Catatanmu berpengaruh besar di perkiraan ini. Tulis fakta tentang rumahnya saja (kondisi, fasilitas), bukan kata-kata promosi."));
-  box.append(el("p", "hint", "Ini gambaran kasar. Faktor-faktor ini saling berkaitan, jadi persennya tidak bisa dijumlahkan."));
+  box.append(el("p", "hint", "Ini gambaran kasar. Hal-hal ini saling berkaitan, jadi pengaruhnya tidak bisa dijumlahkan."));
+  return box;
+}
+
+// ---- what is close to the pin: the nearest toll gates, stations and bus stops, only those within a walkable or drivable range
+const NEARBY = [
+  { file: "layer_toll", title: "Gerbang tol terdekat", maxM: 5000, mergeM: 1000, none: "Tidak ada gerbang tol dalam 5 km" },
+  { file: "layer_stations", title: "Stasiun terdekat (KRL, MRT, LRT)", maxM: 5000, mergeM: 300, none: "Tidak ada stasiun dalam 5 km" },
+  { file: "layer_busway", title: "Halte bus terdekat", maxM: 1000, mergeM: 200, none: "Tidak ada halte bus dalam 1 km" },
+];
+const layerData = new Map();
+const loadLayer = (file) => { if (!layerData.has(file)) layerData.set(file, fetch(`data/${file}.geojson`).then((res) => res.json()).catch(() => { layerData.delete(file); return null; })); return layerData.get(file); };
+function nearbyBlock(point) {
+  const box = el("div", "nearby");
+  box.append(el("h4", "", "Terdekat dari lokasi ini"));
+  Promise.all(NEARBY.map((n) => loadLayer(n.file))).then((all) => {
+    NEARBY.forEach((n, i) => {
+      if (!all[i]) return;
+      const found = nearest(all[i].features, point.lat, point.lon, n), group = el("div", "near-group");
+      group.append(el("b", "", n.title));
+      if (!found.length) group.append(el("p", "hint", n.none));
+      else { const list = el("ul"); found.forEach((p) => { const li = el("li"); li.append(el("span", "", p.name || KIND_LABEL[p.kind] || "Tanpa nama"), el("b", "", distanceLabel(p.metres))); list.append(li); }); group.append(list); }
+      box.append(group);
+    });
+    if (box.children.length > 1) box.append(el("p", "hint", "Jarak lurus dari pin, bukan jarak lewat jalan. Yang lebih jauh dari batas di atas tidak ditampilkan."));
+  });
   return box;
 }
 

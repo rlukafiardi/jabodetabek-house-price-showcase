@@ -54,8 +54,19 @@ await shot(page, "0-welcome");
 await page.click("#welcome-map");
 assert.equal(await page.$eval("#welcome", (n) => n.hidden), true);
 await page.click("#help");
-assert.equal(await page.$eval("#welcome", (n) => n.hidden), false, "the ? button brings the guide back");
+assert.equal(await page.$eval("#welcome", (n) => n.hidden), false, "the Panduan button brings the guide back");
 await page.click("#welcome-close");
+
+// the About panel has its own button and is not inside the estimate form
+await page.click("#open-about");
+assert.equal(await page.$eval("#about", (n) => n.hidden), false);
+assert.match(await text(page, "#about"), /Tentang peta dan perkiraan ini/);
+assert.match(await text(page, "#about"), /iklan rumah dijual/);
+assert.equal(await page.$eval("#estimate #about, #estimate .about", (n) => !!n).catch(() => false), false, "the estimate panel no longer holds the about text");
+await shot(page, "0b-about");
+await page.click("#open-estimate");
+assert.equal(await page.$eval("#about", (n) => n.hidden), true, "opening the estimate closes the About panel");
+await page.click("#close-estimate");
 
 // price layers and the legend
 const layers = await page.evaluate(() => { const f = window.__map.queryRenderedFeatures({ layers: ["kecamatan-fill"] }); return { rendered: f.length, withPrice: f.filter((x) => x.properties.cls >= 0).length }; });
@@ -156,6 +167,10 @@ await page.click("#close-rank");
 // layers to consider: stations, rivers; hovering a station names it, tapping it does not move the pin
 await page.click("#layers .title");
 assert.equal(await page.$eval("#layers a.link", (a) => a.rel + " " + new URL(a.href).host), "noopener noreferrer inarisk.bnpb.go.id", "flood: a link out, not a copy of the data");
+// a facility layer must draw at the zoom the map opens at (it once only appeared from zoom 9.5, so switching it on showed nothing)
+await page.click('#layers input[data-layer="mall"]');
+await page.waitForFunction(() => window.__map.queryRenderedFeatures({ layers: ["lyr-mall-mall"] }).length > 20, { timeout: 30000 });
+await page.click('#layers input[data-layer="mall"]');
 await page.evaluate(() => window.__map.jumpTo({ center: [106.82, -6.2], zoom: 11.5 }));
 await page.click('#layers input[data-layer="stations"]');
 await page.click('#layers input[data-layer="rivers"]');
@@ -229,11 +244,18 @@ assert.equal(await page.$eval("#form", (f) => f.hidden), true, "the result is it
 await sleep(1200);
 await shot(page, "5-estimate");
 
-// why this price: the factors from the API, named in Indonesian with a signed percent
+// why this price: the factors from the API, named in Indonesian with a direction and a strength in words, no numbers
 await page.click(".why summary");
 const factors = await page.$$eval(".why li", (li) => li.map((n) => n.textContent));
-assert.ok(factors.length >= 1 && factors.every((f) => /(naik|turun) \d+%$/.test(f)), `factors: ${factors}`);
+assert.ok(factors.length >= 1 && factors.every((f) => /(Menaikkan|Menurunkan) (sedikit|cukup|banyak)$/.test(f)), `factors: ${factors}`);
 await shot(page, "5c-why");
+// close to the pin: nearest toll gates, stations and bus stops inside their ranges, each with a distance
+const nearby = await text(page, ".nearby");
+assert.match(nearby, /Terdekat dari lokasi ini/);
+assert.match(nearby, /Gerbang tol terdekat/);
+assert.match(nearby, /Stasiun terdekat/);
+assert.match(nearby, /\d+ m|\d,\d km/, "a distance is shown");
+assert.ok((await page.$$(".near-group")).length === 3, "three groups: toll, stations, bus stops");
 
 // check an ad price: a typed price is read and compared; a bare number asks for a unit
 // a price is typed with a unit word: the keyboard must be the full one (not decimal) and the unit buttons must work

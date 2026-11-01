@@ -59,7 +59,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #welcome .fine { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
 
 /* floating panels */
-#area, #estimate, #legend, #layers, #rank { position: absolute; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); }
+#area, #estimate, #about, #legend, #layers, #rank { position: absolute; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); }
 #area { position: static; flex: 0 1 auto; min-height: 0; overflow: auto; padding: 14px 16px 16px; }
 #area[hidden] { display: none; }
 #area .top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
@@ -119,10 +119,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .swatch.mixed { border: 0; border-top: 2px dashed var(--ink); height: 0; width: 20px; border-radius: 0; }
 
 #rank { z-index: 6; right: 12px; top: calc(var(--bar) + 14px); bottom: 12px; width: 392px; display: flex; flex-direction: column; padding: 14px 16px 12px; }
-#estimate { z-index: 6; right: 12px; top: calc(var(--bar) + 14px); bottom: 12px; width: 392px; overflow: auto; padding: 14px 16px 18px; }
-#estimate .head, #rank .head { display: flex; justify-content: space-between; align-items: center; }
-#estimate h2, #rank h2 { font-size: 18px; }
-#rank[hidden], #rank [hidden] { display: none; }
+#estimate, #about { z-index: 6; right: 12px; top: calc(var(--bar) + 14px); bottom: 12px; width: 392px; overflow: auto; padding: 14px 16px 18px; }
+#estimate .head, #about .head, #rank .head { display: flex; justify-content: space-between; align-items: center; }
+#estimate h2, #about h2, #rank h2 { font-size: 18px; }
+#about[hidden], #rank[hidden], #rank [hidden] { display: none; }
 #rank-tabs { display: flex; gap: 2px; margin-top: 10px; padding: 3px; background: var(--hover); border-radius: var(--radius); }
 #rank-tabs button { flex: 1; border: 0; background: transparent; padding: 6px 4px; border-radius: 8px; font-weight: 600; font-size: 13.5px; white-space: nowrap; }
 #rank-tabs button[aria-selected="true"] { background: var(--ink); color: #fff; }
@@ -228,8 +228,7 @@ summary { cursor: pointer; color: var(--accent); }
 .share-link { margin-top: 6px; font-size: 12px; }
 .legend-line { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
 .legend-line i { display: inline-block; width: 14px; height: 9px; margin-right: 5px; border-radius: 2px; border: 1px solid rgb(0 0 0 / .2); vertical-align: -1px; }
-.about { margin-top: 16px; font-size: 13px; color: var(--muted); }
-.about p { margin-top: 8px; }
+#about p { margin-top: 10px; font-size: 13.5px; color: var(--muted); }
 
 /* map pieces */
 .pin { width: 22px; height: 22px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--ink); border: 3px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / .4); }
@@ -239,12 +238,12 @@ summary { cursor: pointer; color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 @media (max-width: 800px) {
-  :root { --bar: 104px; }
+  :root { --bar: 156px; }
   #welcome { left: 8px; right: 8px; top: auto; width: auto; bottom: max(14px, env(safe-area-inset-bottom)); padding: 18px 16px 14px; }
   body.welcoming #open-estimate, body.panel-open #open-estimate { display: none; }
-  #views { flex: 1 1 0; min-width: 0; margin-left: 0; }
+  #views { flex: 1 1 100%; min-width: 0; margin-left: 0; }
   #views button { flex: 1; padding: 7px 4px; font-size: 13px; }
-  .bar-btn { padding: 10px 12px; }
+  .bar-btn { flex: 1; padding: 10px 8px; }
   #help { margin-left: 0; }
   #rank { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 62dvh; border-radius: 14px 14px 0 0; z-index: 7; }
   body.welcoming #open-rank { display: none; }
@@ -256,7 +255,7 @@ summary { cursor: pointer; color: var(--accent); }
   body.panel-open #left, body.welcoming #left { display: none; }
   #area { max-height: 42dvh; }
   .maplibregl-ctrl-bottom-right { display: none; } /* pinch zooms on a phone; the buttons would sit behind the legend */
-  #estimate { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 58dvh; border-radius: 14px 14px 0 0; z-index: 7; }
+  #estimate, #about { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 58dvh; border-radius: 14px 14px 0 0; z-index: 7; }
   .maplibregl-ctrl-top-right { top: 0; }
 }
 
@@ -279,6 +278,12 @@ summary { cursor: pointer; color: var(--accent); }
 .why { margin-top: 12px; }
 .why ul { list-style: none; margin: 6px 0; padding: 0; }
 .why li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.nearby { margin-top: 14px; }
+.nearby h4 { font-size: 14px; }
+.near-group { margin-top: 8px; }
+.near-group ul { list-style: none; margin: 2px 0 0; padding: 0; }
+.near-group li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.near-group li b { flex: none; font-weight: 650; }
 .why li b.up { color: #8a3a12; }
 .why li b.down { color: #1b4f9c; }
 .unit-chips { display: flex; gap: 6px; margin: -2px 0 8px; }
