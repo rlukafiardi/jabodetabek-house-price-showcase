@@ -4,12 +4,10 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/format.test.mjs tests/search.test.mjs",
-    "e2e": "node tests/e2e.mjs",
-    "deploy": "wrangler deploy",
-    "preview": "wrangler dev"
+    "e2e": "node tests/e2e.mjs"
   },
   "devDependencies": {
-    "puppeteer-core": "^25.16.0",
-    "wrangler": "^4.156.0"
+    "netlify-cli": "27.16.1",
+    "puppeteer-core": "^25.16.0"
   }
 }

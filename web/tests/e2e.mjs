@@ -11,7 +11,7 @@ const shots = process.argv[2];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--window-size=1400,900"] });
-const problems = [], geocoderCalls = [];
+const problems = [], geocoderCalls = [], hostScripts = [];
 
 async function open(viewport) {
   const page = await browser.newPage();
@@ -21,6 +21,8 @@ async function open(viewport) {
   page.on("requestfailed", (r) => { if (r.failure()?.errorText !== "net::ERR_ABORTED") problems.push(`request failed: ${r.url()} (${r.failure()?.errorText})`); }); // the map cancels tile downloads when the view jumps
   await page.setRequestInterception(true);
   page.on("request", (req) => {
+    // the host's own badge script (Netlify Free injects it into every page; our CSP blocks its inline parts): not our code, so it is skipped and counted
+    if (new URL(req.url()).pathname.startsWith("/.netlify/scripts/")) { hostScripts.push(req.url()); return req.abort("aborted"); }
     if (req.url().startsWith("https://nominatim.openstreetmap.org/")) {
       geocoderCalls.push(req.url());
       return req.respond({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" },
@@ -249,7 +251,8 @@ await page.click(".why summary");
 const factors = await page.$$eval(".why li", (li) => li.map((n) => n.textContent));
 assert.ok(factors.length >= 1 && factors.every((f) => /(Menaikkan|Menurunkan) (sedikit|cukup|banyak)$/.test(f)), `factors: ${factors}`);
 await shot(page, "5c-why");
-// close to the pin: nearest toll gates, stations and bus stops inside their ranges, each with a distance
+// close to the pin: nearest toll gates, stations and bus stops inside their ranges, each with a distance (the layer files load after the result)
+await page.waitForFunction(() => document.querySelectorAll(".nearby .near-group").length === 3, { timeout: 30000 });
 const nearby = await text(page, ".nearby");
 assert.match(nearby, /Terdekat dari lokasi ini/);
 assert.match(nearby, /Gerbang tol terdekat/);
@@ -321,4 +324,4 @@ await shot(phone, "7-phone-estimate");
 
 await browser.close();
 assert.deepEqual(problems, [], problems.join("\n"));
-console.log("e2e ok:", { legend: legend.length, ...layers, cells, geocoderCalls: geocoderCalls.length, result: result.slice(0, 110) });
+console.log("e2e ok:", { hostScriptsSkipped: hostScripts.length, legend: legend.length, ...layers, cells, geocoderCalls: geocoderCalls.length, result: result.slice(0, 110) });
