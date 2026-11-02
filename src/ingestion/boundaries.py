@@ -1,7 +1,7 @@
 import geopandas as gpd
 import shapely
 
-from src.config import RAW, SPATIAL
+from src.config import LAYERS_RAW as RAW, SPATIAL
 
 # Official BIG kecamatan boundaries (BATASWILAYAH_KECAMATAN_20260601), downloaded from the share link BIG gave out: one polygon per kecamatan, no dissolve
 KECAMATAN_GDB = RAW / "big_kecamatan" / "unzipped" / "BATASWILAYAH_KECAMATAN.gdb"

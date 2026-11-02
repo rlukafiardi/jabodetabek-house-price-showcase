@@ -29,21 +29,26 @@ def reference_values(train: pd.DataFrame, inner_scores: np.ndarray) -> pd.Series
     return train[MODEL_FEATURES].assign(text_score=inner_scores).median()
 
 
-def build() -> None:
-    train = add_words(load_usable("train"))
+def fit_bundle(train: pd.DataFrame, ranges: pd.DataFrame, info: dict) -> dict:
+    """The deployable model fitted on `train` (listings with features and `words`): the recipe of the live model. `ranges` is the city range
+    table (refreshed quarterly from out-of-fold errors, not here); `info` is what the API reports about the model."""
     y = target(train)
     inner_scores, _ = text_scores(train, train.iloc[:1])
-    columns = [*MODEL_FEATURES, "text_score"]
-    holdout = pd.read_csv(ROOT / "reports" / "tables" / "final_test.csv", index_col="model").iloc[0]
-    bundle = {
+    return {
         "parts": fit_parts(train[MODEL_FEATURES].assign(text_score=inner_scores), y),
         "text_model": text_model().fit(train.words, y),
         "text_score_range": tuple(np.quantile(inner_scores, TEXT_SCORE_QUANTILES)),
         "reference": reference_values(train, inner_scores),
-        "columns": columns, "age_days": float(train.age_days.min()),  # a listing posted now looks like the freshest training listing
-        "ranges": pd.read_csv(RANGES, index_col="city"), "city_by_code": city_by_code(train),
-        "info": {"trained_rows": len(train), "holdout_median_error": float(holdout.median_ape), "holdout_interval": [float(holdout.median_ci_low), float(holdout.median_ci_high)]},
+        "columns": [*MODEL_FEATURES, "text_score"], "age_days": float(train.age_days.min()),  # a listing posted now looks like the freshest training listing
+        "ranges": ranges, "city_by_code": city_by_code(train), "info": {"trained_rows": len(train), **info},
     }
+
+
+def build() -> None:
+    train = add_words(load_usable("train"))
+    holdout = pd.read_csv(ROOT / "reports" / "tables" / "final_test.csv", index_col="model").iloc[0]
+    bundle = fit_bundle(train, pd.read_csv(RANGES, index_col="city"),
+                        {"holdout_median_error": float(holdout.median_ape), "holdout_interval": [float(holdout.median_ci_low), float(holdout.median_ci_high)]})
     (SERVING / "model").mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, SERVING / "model" / "model.joblib", compress=3)
     for source in [*EXTERNAL.glob("osm_*"), SPATIAL / "big_kecamatan_jabodetabek.geojson", FLOOD_TIF]:
