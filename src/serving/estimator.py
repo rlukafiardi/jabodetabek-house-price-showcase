@@ -42,6 +42,17 @@ class House:
     specs: dict[str, float] = field(default_factory=dict)  # any of SPEC_COLUMNS; absent means unknown
 
 
+def model_inputs(bundle: dict, rows: pd.DataFrame) -> pd.DataFrame:
+    """The ensemble's input columns for rows that have the features and `words`: adds the text score, clipped to the training range."""
+    score = np.clip(bundle["text_model"].predict(rows.words), *bundle["text_score_range"])
+    return rows.assign(text_score=score)[bundle["columns"]]
+
+
+def price_per_m2(bundle: dict, x: pd.DataFrame) -> np.ndarray:
+    """Price per m² of land: the mean of the members' log predictions, back-transformed. Shared by the API and the weekly scoring."""
+    return np.exp(np.mean([m.predict(x) for m in bundle["parts"].values()], axis=0))
+
+
 class OutsideArea(ValueError):
     """The point is not inside a Jabodetabek kecamatan."""
 
@@ -90,9 +101,8 @@ class Estimator:
 
     def estimate(self, house: House) -> dict:
         row = self.features(house)
-        score = float(np.clip(self.bundle["text_model"].predict(row.words)[0], *self.bundle["text_score_range"]))
-        x = row.assign(text_score=score)[self.columns]
-        per_m2 = float(np.exp(np.mean([m.predict(x)[0] for m in self.bundle["parts"].values()])))
+        x = model_inputs(self.bundle, row)
+        per_m2 = float(price_per_m2(self.bundle, x)[0])
         price = per_m2 * house.land_area
         city = self.bundle["city_by_code"].get(str(row.kecamatan_code.iloc[0])[:4])
         ranges = {}

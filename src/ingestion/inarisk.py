@@ -1,6 +1,6 @@
 import httpx
 
-from src.config import RAW
+from src.config import LAYERS_RAW as RAW
 
 FLOOD_URL = "https://gis.bnpb.go.id/server/rest/services/inarisk/INDEKS_BAHAYA_BANJIR/ImageServer/exportImage"
 FLOOD_TIF = RAW / "inarisk" / "flood_hazard.tif"
