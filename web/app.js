@@ -34,6 +34,7 @@ const state = { view: "kecamatan", point: null, marker: null, hovered: null, sel
 // ---- the text of "about" from the data's own numbers
 $("about-listings").textContent = meta.listings_total.toLocaleString("id-ID");
 $("about-window").textContent = `${meta.listings_from} sampai ${meta.listings_to}`;
+$("about-date").textContent = new Date(`${meta.generated}T00:00:00Z`).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 $("about-min").textContent = meta.min_listings;
 $("about-error").textContent = pct(meta.model.holdout_median_error);
 

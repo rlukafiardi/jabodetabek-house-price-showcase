@@ -64,6 +64,7 @@ await page.click("#open-about");
 assert.equal(await page.$eval("#about", (n) => n.hidden), false);
 assert.match(await text(page, "#about"), /Tentang peta dan perkiraan ini/);
 assert.match(await text(page, "#about"), /iklan rumah dijual/);
+assert.match(await text(page, "#about"), /data per \d{1,2} \w+ 20\d\d\./, "the about text says when the data is from");
 assert.equal(await page.$eval("#estimate #about, #estimate .about", (n) => !!n).catch(() => false), false, "the estimate panel no longer holds the about text");
 await shot(page, "0b-about");
 await page.click("#open-estimate");

@@ -11,6 +11,10 @@ RUN uv sync --frozen --no-dev --group serving --no-install-project \
  && uv pip uninstall --python .venv/bin/python xgboost nvidia-nccl-cu13 \
  && uv pip install --python .venv/bin/python --no-deps xgboost-cpu==3.4.1
 COPY src ./src
+# the monthly job rebuilds and publishes the site data: the build script, the site's own files and two small result tables it reads
+COPY scripts/__init__.py scripts/build_site_data.py ./scripts/
+COPY web/index.html web/style.css web/app.js web/config.js web/format.mjs web/share.mjs web/search.mjs web/_headers ./web/
+COPY reports/tables/final_test.csv reports/tables/final_test_range_coverage.csv ./reports/tables/
 COPY serving/data ./data
 COPY serving/model ./model
 ENV MODEL_DIR=/app/model PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
