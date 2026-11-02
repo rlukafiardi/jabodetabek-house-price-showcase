@@ -8,6 +8,12 @@ and what a house like yours would ask, with an honest range around the number.
 
 ![The site on first visit](reports/figures/site_welcome.png)
 
+## How it works
+![Architecture](docs/architecture.svg)
+
+A weekly job crawls and scores new listings, a monthly job refits a challenger model and refreshes the public site data after a set of checks, and visitors
+get a static map plus an estimate API. The crawler's code is not part of this repository.
+
 ## The site
 A static page in plain, casual Bahasa Indonesia (MapLibre on a free OpenStreetMap-based basemap, no build step, served from Netlify). It is written for
 people who have never seen the data, so it avoids statistics words and says what a number means next to it.
