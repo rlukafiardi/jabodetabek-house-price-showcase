@@ -30,6 +30,8 @@ pages, plus OpenStreetMap, BIG boundaries and BNPB flood hazard. 4,031 usable li
 and 562 held out and scored once. Listings are sampled by place names in the listing slug, so houses whose slug names only a street or a cluster
 are under-represented, and rural kecamatan have few or no listings.
 
+The figures on this card describe the model as it was fitted: 3,469 training listings and the 562 held out. Later crawls added listings, and the analysis reports under `reports/` are rebuilt from every listing outside the holdout (3,896 on 2026-11-04), so their training counts and importance tables differ slightly from the fitted model's.
+
 ## Performance
 Median absolute percentage error of price (half of the estimates are closer than this); all out-of-fold on training data
 unless marked holdout.

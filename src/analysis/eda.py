@@ -9,7 +9,7 @@ from scipy.stats import spearmanr
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import BallTree
 
-from src.analysis.html_report import BLUE, BLUES, DIVERGING, GREY, MUTED, RED, page, plots_html, save_pngs, section, styled, table_html, tile
+from src.analysis.html_report import BLUE, BLUES, DIVERGING, GREY, MUTED, ORANGE, RED, page, plots_html, save_pngs, section, styled, table_html, tile
 from src.analysis.noise_floor import noise_table
 from src.config import INTERIM, ROOT
 from src.features.spatial import EARTH_RADIUS_KM
@@ -249,7 +249,7 @@ def moran_lines(moran: pd.DataFrame) -> go.Figure:
     fig = go.Figure([
         go.Scatter(x=moran.band_km, y=moran.moran_raw, mode="lines+markers", name="raw", line=dict(color=BLUE, width=2), marker=dict(size=9),
                    hovertemplate="%{x} km: Moran's I %{y:.2f}<extra>raw</extra>"),
-        go.Scatter(x=moran.band_km, y=moran.moran_city_adjusted, mode="lines+markers", name="city median removed", line=dict(color=MUTED, width=2),
+        go.Scatter(x=moran.band_km, y=moran.moran_city_adjusted, mode="lines+markers", name="city median removed", line=dict(color=ORANGE, width=2),
                    marker=dict(size=9), hovertemplate="%{x} km: Moran's I %{y:.2f}<extra>city median removed</extra>"),
     ])
     fig.add_hline(y=0, line_color=MUTED, line_width=1)
