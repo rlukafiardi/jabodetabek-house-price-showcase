@@ -58,7 +58,8 @@ def test_results(results: pd.DataFrame, n_test: int) -> go.Figure:
         customdata=np.c_[r.median_ci_low * 100, r.median_ci_high * 100, r.within_20pct * 100],
         hovertemplate="%{y}<br>median error %{x:.1f}% (95%: %{customdata[0]:.1f}-%{customdata[1]:.1f})<br>%{customdata[2]:.0f}% within ±20%<extra></extra>"))
     fig.update_xaxes(title=f"median absolute % error of the price on the {n_test} test listings (bars: 95% bootstrap interval)")
-    return styled(fig, "Final model against the alternatives, on listings never used for training", height=340)
+    rank = int((results.median_ape < results.loc[FINAL_NAME, "median_ape"]).sum()) + 1
+    return styled(fig, f"The final model misses by {results.loc[FINAL_NAME, 'median_ape'] * 100:.1f}% (median) on {n_test} unseen listings, rank {rank} of {len(results)}", height=340)
 
 
 def predicted_vs_actual(test: pd.DataFrame, pred_ppm2: np.ndarray) -> go.Figure:
@@ -76,7 +77,8 @@ def predicted_vs_actual(test: pd.DataFrame, pred_ppm2: np.ndarray) -> go.Figure:
     ticks = [2, 5, 10, 20, 50, 100]
     fig.update_xaxes(type="log", title="actual asking price per m² of land (M IDR)", tickvals=ticks, ticktext=[str(t) for t in ticks])
     fig.update_yaxes(type="log", title="predicted (M IDR)", tickvals=ticks, ticktext=[str(t) for t in ticks])
-    return styled(fig, "Predicted vs actual price per m² (test set)", height=560, legend=True)
+    within = np.mean(np.abs(predicted / actual - 1) <= 0.2) * 100
+    return styled(fig, f"{within:.0f}% of test listings land within ±20% of the actual price per m²", height=560, legend=True)
 
 
 def bias_by_quartile(test: pd.DataFrame, pred_ppm2: np.ndarray) -> tuple[go.Figure, pd.Series]:
@@ -110,7 +112,7 @@ def shap_ranking(shap: pd.DataFrame) -> tuple[go.Figure, pd.Series]:
     fig = go.Figure(go.Bar(x=pct(mean_abs.values), y=[label(f) for f in mean_abs.index], orientation="h", marker_color=BLUE,
                            hovertemplate="%{y}: moves price per m² by %{x:.1f}% on average<extra></extra>"))
     fig.update_xaxes(title="mean absolute SHAP effect on price per m² (%)")
-    return styled(fig, "SHAP: how much each feature moves the prediction, on average", height=760), mean_abs.sort_values(ascending=False)
+    return styled(fig, f"{label(mean_abs.index[-1])} moves the predicted price most: {pct(mean_abs.values[-1]):.1f}% on average", height=760), mean_abs.sort_values(ascending=False)
 
 
 def shap_beeswarm(shap: pd.DataFrame, x: pd.DataFrame, top: list[str]) -> go.Figure:
@@ -145,7 +147,7 @@ def gain_ranking(model, features: list[str]) -> tuple[go.Figure, pd.Series]:
     fig = go.Figure(go.Bar(x=share.values, y=[label(f) for f in share.index], orientation="h", marker_color=BLUE,
                            hovertemplate="%{y}: %{x:.1f}% of the total gain<extra></extra>"))
     fig.update_xaxes(title="share of XGBoost's total split gain (%)")
-    return styled(fig, "XGBoost built-in importance (gain)", height=760), share.sort_values(ascending=False)
+    return styled(fig, f"By split gain, {label(share.index[-1])} leads with {share.values[-1]:.0f}% of the total", height=760), share.sort_values(ascending=False)
 
 
 def vif(x: pd.DataFrame) -> pd.Series:
@@ -162,7 +164,8 @@ def linear_coefficients(train: pd.DataFrame, features: list[str]) -> tuple[go.Fi
     fig = go.Figure(go.Bar(x=table.effect_pct_per_sd, y=[f"{f} (VIF {v:.0f})" if v >= 10 else f for f, v in zip(table.feature, table.vif)],
                            orientation="h", marker_color=colours, hovertemplate="%{y}: %{x:+.1f}% per standard deviation<extra></extra>"))
     fig.update_xaxes(title="% change in price per m² for +1 standard deviation (grey: VIF 10 or more, not readable on its own)")
-    return styled(fig, "Explanatory linear model: direction and size of each feature's effect", height=760), table.iloc[::-1]
+    top = table.iloc[-1]
+    return styled(fig, f"Largest linear effect: {top.feature} at {top.effect_pct_per_sd:+.0f}% per standard deviation" + (" (VIF 10 or more, not readable alone)" if top.vif >= 10 else ""), height=760), table.iloc[::-1]
 
 
 def segment_figure(segments: pd.DataFrame) -> go.Figure:
@@ -184,7 +187,9 @@ def backtest_figure(backtest: pd.DataFrame) -> go.Figure:
     fig.update_layout(barmode="group")
     fig.update_xaxes(type="category")  # month labels, not dates
     fig.update_yaxes(title="median absolute % error of the price", rangemode="tozero")
-    return styled(fig, "Does the model go stale? Each month scored by a past-only and a mixed-period model", height=380, legend=True)
+    by_month = backtest.pivot(index="target_month", columns="train", values="median_ape")
+    gap = (by_month["past"] - by_month["mixed"]).abs().max() * 100
+    return styled(fig, f"A past-only model differs from a mixed-period one by at most {gap:.1f} points in any month", height=380, legend=True)
 
 
 def price_level_figure(train: pd.DataFrame) -> go.Figure:
@@ -194,7 +199,7 @@ def price_level_figure(train: pd.DataFrame) -> go.Figure:
                                customdata=level["size"], hovertemplate="%{x}: %{y:.1f} M IDR/m² on %{customdata} listings<extra></extra>"))
     fig.update_xaxes(type="category")
     fig.update_yaxes(title="median asking price per m² of land (M IDR)", rangemode="tozero")
-    return styled(fig, "Price level by listing month (mid-2025 months hold few surviving listings)", height=340)
+    return styled(fig, f"Median asking price per m² went from {level['median'].iloc[0]:.1f} M IDR in {level.index[0]} to {level['median'].iloc[-1]:.1f} M IDR in {level.index[-1]} (early months hold few surviving listings)", height=340)
 
 
 def dot_rows(rows: pd.DataFrame, title: str, height: int) -> go.Figure:
@@ -249,10 +254,11 @@ if __name__ == "__main__":
     figures["shap_dependence"] = shap_dependence(shap, train_x, [f for f in top if train_x[f].nunique() > 2][:4])
     figures["gain"], gain = gain_ranking(model, features)
     figures["linear"], coefficients = linear_coefficients(train, [f for f in E4_FEATURES if train[f].nunique() > 1])
-    figures["screen"] = dot_rows(exp[exp.index.str.startswith("D ")].rename(index=lambda n: n.removeprefix("D ")),
-                                 "Model screen: 17 families with default settings", height=620)
-    figures["tuned"] = dot_rows(exp[exp.index.str.startswith("E6 tuned")].rename(index=lambda n: n.removeprefix("E6 tuned ")),
-                                "After tuning: best configuration per family", height=360)
+    screen = exp[exp.index.str.startswith("D ")].rename(index=lambda n: n.removeprefix("D "))
+    families = screen[~screen.index.str.contains("our settings")]  # the screen also shows our earlier E4 run as a reference row
+    figures["screen"] = dot_rows(screen, f"Of {len(families)} model families at default settings, {families.spatial.idxmin()} scores best on spatial-block CV ({families.spatial.min():.1f}%)", height=620)
+    tuned = exp[exp.index.str.startswith("E6 tuned")].rename(index=lambda n: n.removeprefix("E6 tuned "))
+    figures["tuned"] = dot_rows(tuned, f"After tuning, {tuned.spatial.idxmin()} scores best on spatial-block CV ({tuned.spatial.min():.1f}%)", height=360)
     figures["ablation"] = ablation_bars(exp)
     ladder = ["E8 final model", "E9a + spec fields", "E12 ensemble xgb + extra trees + ridge", "E13 + text score on xgboost",
               "E14a ensemble + spec fields + text score", "E18 ensemble + neighbourhood context"]
