@@ -269,7 +269,7 @@ def month_line(by_month: pd.DataFrame) -> go.Figure:
 if __name__ == "__main__":
     for folder in (FIGURES, TABLES):
         folder.mkdir(parents=True, exist_ok=True)
-    df = load_usable()
+    df = load_usable(fitted=True)
     df = df.assign(ppm2_land=df.price / df.land_area, month=df.created_at.dt.strftime("%Y-%m"))
 
     own = df[df.coord_is_centroid == 0]

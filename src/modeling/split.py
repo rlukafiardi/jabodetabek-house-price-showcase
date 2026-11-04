@@ -3,10 +3,12 @@ import sys
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
-from src.config import INTERIM, PROCESSED
+from src.config import INTERIM, PROCESSED, STATE
 
 JABODETABEK = "Jakarta|Tangerang|Bekasi|Depok|Bogor"
 TEST_SLUGS = PROCESSED / "test_slugs.txt"  # current holdout (v2); gitignored; written once, never regenerated
+FITTED_SLUGS = STATE / "reference" / "train_slugs.txt"  # the rows the live model was fitted on, one slug per line; written by the gate, copied by `make promote`
+FITTED_ASOF = STATE / "reference" / "train_asof.txt"  # the instant `age_days` is measured from for those rows (ISO time, UTC)
 FROZEN_V1 = PROCESSED / "frozen_v1_slugs.txt"  # every usable slug at the first data freeze; the v2 holdout comes from newer rows only
 SEED = 20261029
 MAX_ROOMS = 8  # more bedrooms or bathrooms means a boarding house, guesthouse or office: out of scope
@@ -23,6 +25,17 @@ def usable_listings() -> pd.DataFrame:
     df = df[(df.bedrooms <= MAX_ROOMS) & (df.bathrooms <= MAX_ROOMS)]
     # take-over ("over kredit") listings quote the fee for taking over a mortgage, not the house value: out of scope
     return df[df.txt_take_over == 0].reset_index(drop=True)
+
+
+def fitted_listings() -> pd.DataFrame:
+    """Exactly the listings the live model was fitted on. Later crawls cannot add rows, and the same-house rule cannot swap one for a newer
+    listing with an earlier slug, as `usable_listings` can."""
+    slugs = set(FITTED_SLUGS.read_text(encoding="utf-8").split())
+    df = pd.read_csv(INTERIM / "portal_listings.csv", parse_dates=["created_at"])
+    df = df[df.slug.isin(slugs)].sort_values("slug").reset_index(drop=True)
+    if len(df) != len(slugs):
+        raise ValueError(f"{len(slugs) - len(df)} of the {len(slugs)} fitted slugs are not in portal_listings.csv")
+    return df
 
 
 def new_since_v1(df: pd.DataFrame) -> pd.DataFrame:

@@ -229,7 +229,7 @@ def ablation_bars(exp: pd.DataFrame) -> go.Figure:
 
 
 if __name__ == "__main__":
-    train, test = add_words(load_usable("train")), add_words(load_usable("test"))
+    train, test = add_words(load_usable("train", fitted=True)), add_words(load_usable("test"))
     pred_ppm2 = np.exp(ensemble_predict(train, test))  # the model predicts log price per m² of land
     inner_scores, _ = text_scores(train, test.iloc[:1])  # out-of-fold text score of the training rows
     train_x = train[MODEL_FEATURES].assign(text_score=inner_scores)

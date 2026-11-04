@@ -1,33 +1,33 @@
 feature,effect_pct_per_sd,vif
-building area (log),31.747,5.5
-km to Monas,-23.857,21.075
-land area (log),-21.605,3.785
-bathrooms,14.57,3.238
-km to busway stop,11.33,11.146
-km to mall,-10.958,3.055
-floors,9.785,1.671
-km to rail station,-7.832,6.272
-longitude,-7.008,3.416
-km to toll gate,-6.408,2.596
-text: gated,5.769,1.142
-text: luxury,4.436,1.129
-floors missing (flag),-4.198,1.373
-km to KRL station,3.99,6.643
-bedrooms,-3.766,2.917
-km to university,-3.377,2.497
-text: flood free,-3.375,1.073
-text: furnished,3.248,1.132
-latitude,2.859,7.639
-km to MRT/LRT,-2.548,22.416
-text: new,2.441,1.08
-text: urgent,-2.253,1.057
-text: commercial,-2.161,1.043
-coordinate is a district centroid,2.101,1.269
-listing age (days),-2.001,1.198
-text: auction,-1.693,1.069
-text: needs work,-0.877,1.03
-flood hazard index,-0.629,1.474
-text: corner,0.402,1.032
-text: land value,-0.366,1.072
-text: wide road,0.362,1.109
-km to hospital,-0.182,2.739
+building area (log),32.115,5.386
+km to Monas,-23.379,21.79
+land area (log),-21.655,3.749
+bathrooms,15.203,3.222
+km to busway stop,12.143,11.688
+km to mall,-11.327,3.108
+floors,9.607,1.656
+km to rail station,-8.278,6.313
+longitude,-6.875,3.412
+km to toll gate,-6.438,2.6
+text: gated,5.648,1.137
+km to KRL station,4.486,6.81
+floors missing (flag),-4.154,1.394
+text: luxury,4.067,1.142
+bedrooms,-3.882,2.904
+km to university,-3.799,2.572
+text: flood free,-3.519,1.074
+latitude,3.379,7.764
+km to MRT/LRT,-3.334,23.214
+text: furnished,3.235,1.134
+text: commercial,-2.326,1.041
+text: urgent,-2.297,1.054
+listing age (days),-2.149,1.202
+coordinate is a district centroid,2.124,1.291
+text: new,2.088,1.08
+text: auction,-1.79,1.066
+text: needs work,-1.218,1.029
+text: corner,0.822,1.031
+text: wide road,0.442,1.109
+flood hazard index,-0.397,1.493
+text: land value,-0.284,1.078
+km to hospital,-0.238,2.756

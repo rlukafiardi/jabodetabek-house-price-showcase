@@ -1,49 +1,49 @@
 feature,mean_abs_effect_pct
-text score (title and description),31.234
-floors,11.418
-bathrooms,8.682
-land area (log),8.549
-km to nearest CBD core,7.112
-km to nearest business centre,4.958
-km to Monas,4.916
-building area (log),2.777
-commercial land within 500 m,2.775
-longitude,1.579
-km to busway stop,1.553
-latitude,1.266
-km to secondary road,1.194
-furnished level (0-2),0.895
-piped water PAM (spec),0.724
-text: gated,0.612
-cars that fit the access road,0.532
-km to primary road,0.482
-km to industrial land,0.472
-km to tertiary road,0.466
-text: urgent,0.398
-km to MRT/LRT,0.312
-km to railway line,0.311
-text: luxury,0.295
-km to power line,0.251
-residential land within 500 m,0.239
-km to rail station,0.235
-km to KRL station,0.226
-text: flood free,0.218
-listing age (days),0.215
-electricity (VA),0.18
-bedrooms,0.17
-km to river or canal,0.097
-carport spaces,0.094
-text: auction,0.079
-maid rooms (spec),0.066
-flood hazard index,0.051
-industrial land within 500 m,0.035
-text: new,0.031
-floors missing (flag),0.015
-coordinate is a district centroid,0.013
-text: commercial,0.013
-text: furnished,0.008
-text: land value,0.007
-garage (spec),0.007
-text: needs work,0.005
+text score (title and description),31.907
+floors,11.684
+bathrooms,8.955
+land area (log),8.684
+km to Monas,6.366
+km to nearest CBD core,5.612
+km to nearest business centre,5.241
+building area (log),3.324
+commercial land within 500 m,3.297
+longitude,1.465
+km to busway stop,1.369
+km to secondary road,1.063
+latitude,0.885
+furnished level (0-2),0.766
+km to tertiary road,0.711
+piped water PAM (spec),0.642
+km to industrial land,0.613
+km to primary road,0.536
+cars that fit the access road,0.424
+text: gated,0.421
+listing age (days),0.385
+text: urgent,0.346
+km to power line,0.345
+text: flood free,0.318
+km to MRT/LRT,0.317
+km to rail station,0.271
+electricity (VA),0.259
+km to KRL station,0.259
+residential land within 500 m,0.215
+bedrooms,0.209
+km to river or canal,0.183
+km to railway line,0.17
+flood hazard index,0.128
+text: luxury,0.126
+text: furnished,0.108
+text: auction,0.083
+maid rooms (spec),0.079
+carport spaces,0.059
+industrial land within 500 m,0.041
+floors missing (flag),0.017
+garage (spec),0.005
+text: commercial,0.003
+text: new,0.002
 text: corner,0.001
+text: needs work,0.0
+coordinate is a district centroid,0.0
+text: land value,0.0
 text: wide road,0.0
