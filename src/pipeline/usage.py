@@ -1,6 +1,6 @@
 """Weekly usage check of the Google Cloud side against the free tier: Cloud Run requests (and 429s), vCPU-seconds and GiB-seconds of the `api`
 service from Cloud Monitoring, the last 7 days and month to date, a full-month projection at the 7-day pace (month to date is too short to
-project from early in a month), the image registry and the data bucket. The cost table itself is only in the console (Billing, Reports).
+project from early in a month), the image registry and the data bucket (size and Class A/B operations, the part of the bucket that is billed). The cost table itself is only in the console (Billing, Reports).
 Runs as a stage of the weekly job (token from the metadata server) and by hand (`make usage`, token from ./gcloud.sh).
 `usage()` returns warnings when a projection passes WARN_SHARE of a free amount, so the job fails and the alert emails."""
 
@@ -15,6 +15,9 @@ import httpx
 PROJECT, REGION, SERVICE = "jabodetabek-house-price", "asia-southeast2", "api"
 FREE = {"requests": 2_000_000, "vcpu_s": 180_000, "gib_s": 360_000}  # Cloud Run request-based billing, per month (free-features page, read 2026-10-31)
 FREE_REGISTRY_GB, FREE_BUCKET_GB = 0.5, 5.0
+FREE_CLASS_A, FREE_CLASS_B = 5_000, 50_000  # Cloud Storage operations a month in a free-tier US region; the bucket is in us-central1
+CLASS_A = {"WriteObject", "ListObjects"}  # the methods this pipeline uses; the 2026-11 bill matched these two
+CLASS_B = {"GetObjectMetadata", "ReadObject"}
 WARN_SHARE = 0.5
 METRICS = {"vcpu_s": "container/cpu/allocation_time", "gib_s": "container/memory/allocation_time", "instance_s": "container/billable_instance_time"}
 METADATA = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
@@ -72,6 +75,19 @@ def bucket_gb(token: str) -> tuple[int, float]:
     return len(names), total / 1e9
 
 
+def bucket_ops(token: str, start: datetime, end: datetime) -> dict[str, float]:
+    """Cloud Storage requests per method over [start, end), all buckets of the project."""
+    iso = lambda t: t.isoformat().replace("+00:00", "Z")
+    params = {"filter": 'metric.type="storage.googleapis.com/api/request_count"', "interval.startTime": iso(start), "interval.endTime": iso(end),
+              "aggregation.alignmentPeriod": f"{int((end - start).total_seconds())}s", "aggregation.perSeriesAligner": "ALIGN_SUM",
+              "aggregation.crossSeriesReducer": "REDUCE_SUM", "aggregation.groupByFields": "metric.label.method"}
+    totals: dict[str, float] = {}
+    for s in get(token, f"https://monitoring.googleapis.com/v3/projects/{PROJECT}/timeSeries", **params).get("timeSeries", []):
+        method = s["metric"]["labels"]["method"]
+        totals[method] = totals.get(method, 0.0) + sum(float(p["value"].get("int64Value") or 0) for p in s["points"])
+    return totals
+
+
 def usage() -> list[str]:
     token = access_token()
     now = datetime.now(timezone.utc)
@@ -94,6 +110,11 @@ def usage() -> list[str]:
     print(f"image registry `{SERVICE}`: {images} image(s), {reg:.2f} GB of {FREE_REGISTRY_GB} GB free; buckets ({buckets}): {bucket:.3f} GB of {FREE_BUCKET_GB} GB free")
     if reg > FREE_REGISTRY_GB:  # cents a month: shown, but not worth a failed job and an email
         print(f"NOTE image registry above the free {FREE_REGISTRY_GB} GB: delete old images, or deploy the API on the job's image so only one is kept")
+    ops = bucket_ops(token, month_start, now)
+    class_a, class_b = (sum(ops.get(m, 0.0) for m in group) for group in (CLASS_A, CLASS_B))
+    print(f"bucket operations this month: Class A {class_a:,.0f} of {FREE_CLASS_A:,} free, Class B {class_b:,.0f} of {FREE_CLASS_B:,} free")
+    if class_a > 0.8 * FREE_CLASS_A or class_b > 0.8 * FREE_CLASS_B:  # cents a month ($0.005 per 1,000 Class A): shown, not worth a failed job
+        print("NOTE bucket operations near or above the free amount: the extra is billed per 1,000; many small files in state/ drive it")
     print("Costs: console, Billing, Reports (group by SKU): Cloud Run should show its usage cancelled by 'Other savings' (the free-tier credit).")
     for w in warnings:
         print("WARN", w)

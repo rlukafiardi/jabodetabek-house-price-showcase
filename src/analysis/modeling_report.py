@@ -17,7 +17,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src.analysis.eda import LABELS
-from src.analysis.html_report import BLUE, BLUES, GREY, MUTED, RED, page, plots_html, save_pngs, section, styled, table_html, tile
+from src.analysis.html_report import BLUE, BLUES, GREY, MUTED, ORANGE, RED, page, plots_html, save_pngs, section, styled, table_html, tile
 from src.config import ROOT
 from src.modeling.dataset import load_usable
 from src.modeling.ensemble import MODEL_FEATURES, add_words, fit_parts, text_scores
@@ -96,7 +96,7 @@ def errors_by_city(segments: pd.DataFrame) -> go.Figure:
     fig = go.Figure(go.Bar(x=city.median_ape * 100, y=[f"{c} (n={n})" for c, n in zip(city.index, city.n)], orientation="h",
                            marker_color=BLUE, hovertemplate="%{y}: median error %{x:.1f}%<extra></extra>"))
     fig.update_xaxes(title="median absolute % error on test listings (small n: read with care)")
-    return styled(fig, "Test error by city", height=460)
+    return styled(fig, f"Test error runs from {city.median_ape.iloc[0] * 100:.0f}% in {city.index[0]} to {city.median_ape.iloc[-1] * 100:.0f}% in {city.index[-1]}", height=460)
 
 
 def shap_values(model, x: pd.DataFrame) -> pd.DataFrame:
@@ -173,14 +173,14 @@ def segment_figure(segments: pd.DataFrame) -> go.Figure:
                            marker_color=[RED if abs(b) > 0.10 else BLUE for b in shown.bias],
                            hovertemplate="%{y}<br>median error %{x:.1f}% on %{customdata[0]} listings, bias %{customdata[1]:+.1f}%<extra></extra>"))
     fig.update_xaxes(title="median absolute % error, out-of-fold on the training part (red: bias beyond ±10%)")
-    return styled(fig, "Where the error sits", height=640)
+    return styled(fig, f"The largest error sits in {shown.name.iloc[-1]}: {shown.median_ape.iloc[-1] * 100:.0f}%", height=640)
 
 
 def backtest_figure(backtest: pd.DataFrame) -> go.Figure:
     fig = go.Figure([go.Bar(x=part.target_month, y=part.median_ape * 100, name=label, marker_color=colour, customdata=part.train_rows,
                             hovertemplate="%{x}: %{y:.1f}% (trained on %{customdata} listings)<extra>" + label + "</extra>")
                      for label, colour, part in (("trained on the past only", BLUE, backtest[backtest.train == "past"]),
-                                                 ("trained on mixed months, same size", GREY, backtest[backtest.train == "mixed"]))])
+                                                 ("trained on mixed months, same size", ORANGE, backtest[backtest.train == "mixed"]))])
     fig.update_layout(barmode="group")
     fig.update_xaxes(type="category")  # month labels, not dates
     fig.update_yaxes(title="median absolute % error of the price", rangemode="tozero")
@@ -202,7 +202,7 @@ def dot_rows(rows: pd.DataFrame, title: str, height: int) -> go.Figure:
     fig = go.Figure([
         go.Scatter(x=rows.random, y=rows.index, mode="markers", name="random CV", marker=dict(color=BLUE, size=10),
                    hovertemplate="%{y}: %{x:.1f}%<extra>random CV</extra>"),
-        go.Scatter(x=rows.spatial, y=rows.index, mode="markers", name="spatial-block CV", marker=dict(color=MUTED, size=10, symbol="diamond"),
+        go.Scatter(x=rows.spatial, y=rows.index, mode="markers", name="spatial-block CV", marker=dict(color=ORANGE, size=10, symbol="diamond"),
                    hovertemplate="%{y}: %{x:.1f}%<extra>spatial-block CV</extra>"),
     ])
     fig.update_xaxes(title="median absolute % error, cross-validation on the training part")
@@ -216,11 +216,11 @@ def ablation_bars(exp: pd.DataFrame) -> go.Figure:
     names = change.index.str.removeprefix("E7 without ")
     fig = go.Figure([
         go.Bar(x=change.random, y=names, orientation="h", name="random CV", marker_color=BLUE, hovertemplate="%{y}: %{x:+.2f} points<extra>random CV</extra>"),
-        go.Bar(x=change.spatial, y=names, orientation="h", name="spatial-block CV", marker_color=GREY, hovertemplate="%{y}: %{x:+.2f} points<extra>spatial CV</extra>"),
+        go.Bar(x=change.spatial, y=names, orientation="h", name="spatial-block CV", marker_color=ORANGE, hovertemplate="%{y}: %{x:+.2f} points<extra>spatial CV</extra>"),
     ])
     fig.update_layout(barmode="group")
     fig.update_xaxes(title="change in median % error when the group is removed (+ means the group was helping)")
-    return styled(fig, "Ablation: what happens when each feature group is removed", height=520, legend=True)
+    return styled(fig, f"Removing {names[-1]} hurts the spatial-block score most ({change.spatial.iloc[-1]:+.1f} points)", height=520, legend=True)
 
 
 if __name__ == "__main__":

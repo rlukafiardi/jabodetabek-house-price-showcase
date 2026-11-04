@@ -7,9 +7,10 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.io import to_html
 
-# dataviz reference palette (light): text ink, surface, grid, single-series blue, diverging red / neutral / blue
+# chart-design palette (light): text ink, surface, grid, blue (focus), orange (second series), diverging red / neutral / blue, grey (context only)
 INK, MUTED, SURFACE, GRID = "#0b0b0b", "#52514e", "#fcfcfb", "#e8e7e3"
 BLUE, RED, NEUTRAL, GREY = "#2a78d6", "#e34948", "#f0efec", "#b9b8b2"
+ORANGE = "#d95f02"
 BLUES = [[0, "#cde2fb"], [0.5, "#3987e5"], [1, "#0d366b"]]
 DIVERGING = [[0, RED], [0.5, NEUTRAL], [1, BLUE]]
 
