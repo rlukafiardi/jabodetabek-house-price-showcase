@@ -128,3 +128,6 @@ answer and is not stored. The crawler is not part of this repository.
 `src/analysis` (reports, audits, backtest), `src/pipeline` (drift checks, weekly report), `src/serving` (estimator and API),
 `web/` (the site and its tests), `tests/`, `reports/figures` and `reports/tables` (aggregate results only). The data and the crawler are not
 included, so the code is for reading and does not run end to end.
+
+## License
+The code is MIT (see `LICENSE`). The data sources keep their own terms (OpenStreetMap ODbL, BIG, BNPB); no listing data is included.
