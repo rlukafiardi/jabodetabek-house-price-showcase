@@ -18,7 +18,7 @@ from src.features.context import CONTEXT_FEATURES
 from src.modeling.dataset import load_usable
 from xgboost import XGBRegressor
 
-from src.modeling.ensemble import FEATURES as E14A_FEATURES, add_words, ensemble, text_scores
+from src.modeling.ensemble import FEATURES as E14A_FEATURES, MODEL_FEATURES, add_words, ensemble, text_scores
 from src.modeling.final import E4_FEATURES, FACILITY_GROUP, FINAL_FEATURES, SPEC_GROUP, XGB_PARAMS
 from src.modeling.final import fit_predict as final_fit_predict
 
@@ -94,6 +94,18 @@ def log_result(name: str, scheme: str, n: int, metrics: dict[str, float]) -> Non
     pd.concat([old, row]).to_csv(RESULTS, index=False)
 
 
+def plus_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
+    """E25: the final three-model mean plus a tuned LightGBM (best E6 config) as a fourth equal member."""
+    from lightgbm import LGBMRegressor
+    train_score, test_score = text_scores(train, test)
+    columns = MODEL_FEATURES + ["text_score"]
+    x_train, x_test = train.assign(text_score=train_score)[columns], test.assign(text_score=test_score)[columns]
+    lgbm = LGBMRegressor(random_state=0, verbose=-1, subsample_freq=1, subsample=1.0, reg_lambda=5.0, num_leaves=7,
+                         n_estimators=200, min_child_samples=40, learning_rate=0.05, colsample_bytree=0.8)
+    three = ensemble(MODEL_FEATURES, text=True)(train, test)
+    return (3 * three + lgbm.fit(x_train, target(train)).predict(x_test)) / 4
+
+
 EXPERIMENTS: dict[str, FitPredict] = {
     "E0 gbm reference": plain,
     "E1 + smearing": smeared,
@@ -111,6 +123,14 @@ EXPERIMENTS: dict[str, FitPredict] = {
     "E22 ensemble + text score, no spec fields": ensemble(FINAL_FEATURES, text=True),
     "E19a ensemble without extra trees (shippable)": ensemble(E14A_FEATURES, text=True, members=("xgboost", "ridge")),
     "E19b ensemble, extra trees with 20-listing leaves": ensemble(E14A_FEATURES, text=True, extra_leaf=20),
+    "E25a final ensemble (reference)": ensemble(MODEL_FEATURES, text=True),
+    "E25b final without ridge": ensemble(MODEL_FEATURES, text=True, members=("xgboost", "extra trees")),
+    "E25c final without extra trees": ensemble(MODEL_FEATURES, text=True, members=("xgboost", "ridge")),
+    "E25d final without xgboost": ensemble(MODEL_FEATURES, text=True, members=("extra trees", "ridge")),
+    "E25e xgboost alone": ensemble(MODEL_FEATURES, text=True, members=("xgboost",)),
+    "E25f extra trees alone": ensemble(MODEL_FEATURES, text=True, members=("extra trees",)),
+    "E25g ridge alone": ensemble(MODEL_FEATURES, text=True, members=("ridge",)),
+    "E25h final plus LightGBM": plus_lightgbm,
     "E14b ensemble + spec fields + facilities + text score": ensemble(FINAL_FEATURES + SPEC_GROUP + FACILITY_GROUP, text=True),
 }
 

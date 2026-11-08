@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.stats import spearmanr
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GroupKFold, KFold
 from sklearn.neighbors import BallTree
 
 from src.analysis.html_report import BLUE, BLUES, DIVERGING, GREY, MUTED, ORANGE, RED, page, plots_html, save_pngs, section, styled, table_html, tile
@@ -16,6 +17,7 @@ from src.features.spatial import EARTH_RADIUS_KM
 from src.ingestion.parse import FACILITY_FLAGS, TEXT_FLAGS
 from src.ingestion.validate import waterfall
 from src.modeling.dataset import load_usable
+from src.modeling.ensemble import add_words, text_model
 
 REPORT = ROOT / "reports" / "eda.html"
 FIGURES = ROOT / "reports" / "figures"
@@ -266,6 +268,98 @@ def month_line(by_month: pd.DataFrame) -> go.Figure:
     return styled(fig, "No clear trend by listing month (log price per m², city median removed)", height=320)
 
 
+def histogram_grid(df: pd.DataFrame, columns: int = 5) -> go.Figure:
+    """One histogram per numeric feature; strongly right-skewed non-negative columns are drawn as log10(1 + x)."""
+    features = [f for f in LABELS if f in df and pd.api.types.is_numeric_dtype(df[f])]
+    rows = -(-len(features) // columns)
+    titles = []
+    for f in features:
+        skewed = df[f].min() >= 0 and df[f].skew() > 2
+        titles.append(f"{LABELS[f]}{' (log10 1+x)' if skewed else ''}")
+    fig = make_subplots(rows=rows, cols=columns, subplot_titles=titles, vertical_spacing=0.035, horizontal_spacing=0.04)
+    for i, f in enumerate(features):
+        x = df[f].dropna()
+        x = np.log10(1 + x) if x.min() >= 0 and x.skew() > 2 else x
+        fig.add_trace(go.Histogram(x=x, nbinsx=30, marker_color=BLUE, hovertemplate="%{x:.2f}: %{y} listings<extra></extra>"), row=i // columns + 1, col=i % columns + 1)
+    fig.update_annotations(font_size=10)
+    fig.update_yaxes(showticklabels=False)
+    fig = styled(fig, "Shape of every numeric feature (spikes, caps and round-number heaping show here)", height=190 * rows + 90)
+    fig.update_layout(margin=dict(t=110))
+    return fig
+
+
+BINNED = ["log_land", "log_building", "dist_monas_km", "dist_mrt_lrt_km", "bathrooms", "age_days"]
+
+
+def binned_view(df: pd.DataFrame, bins: int = 8) -> tuple[go.Figure, pd.DataFrame]:
+    """Median price per m² of land relative to the city median, by quantile bin of each key feature, with a bootstrap 95% interval and n."""
+    rng = np.random.default_rng(0)
+    ratio = np.exp(city_residual(df)) - 1
+    rows = []
+    fig = make_subplots(rows=2, cols=3, subplot_titles=[LABELS[f] for f in BINNED], vertical_spacing=0.2, horizontal_spacing=0.08)
+    for i, f in enumerate(BINNED):
+        part = pd.DataFrame({"x": df[f], "r": ratio}).dropna()
+        part["bin"] = pd.qcut(part.x, bins, duplicates="drop")
+        stats = []
+        for b, g in part.groupby("bin", observed=True):
+            boot = [np.median(rng.choice(g.r.to_numpy(), len(g))) for _ in range(300)]
+            centre = g.x.median()
+            stats.append({"feature": f, "bin": str(b), "centre": np.exp(centre) if f.startswith("log_") else centre, "n": len(g),
+                          "median vs city": g.r.median(), "low": np.percentile(boot, 2.5), "high": np.percentile(boot, 97.5)})
+        t = pd.DataFrame(stats)
+        rows.append(t)
+        fig.add_trace(go.Scatter(x=t.centre, y=t["median vs city"] * 100, mode="lines+markers", line=dict(color=BLUE, width=2), marker=dict(size=7),
+                                 error_y=dict(type="data", symmetric=False, array=(t.high - t["median vs city"]) * 100, arrayminus=(t["median vs city"] - t.low) * 100, color=GREY),
+                                 customdata=t[["n"]], hovertemplate="%{x:.1f}: %{y:+.0f}% vs city median (%{customdata[0]} listings)<extra></extra>"),
+                      row=i // 3 + 1, col=i % 3 + 1)
+        fig.add_hline(y=0, line_color=MUTED, line_width=1, row=i // 3 + 1, col=i % 3 + 1)
+        if f.startswith("log_"):
+            ticks = [50, 100, 200, 400] if f == "log_land" else [40, 100, 200, 400]
+            fig.update_xaxes(type="log", tickvals=ticks, ticktext=[str(t) for t in ticks], row=i // 3 + 1, col=i % 3 + 1)
+    fig.update_yaxes(title_text="% vs city median", col=1)
+    return styled(fig, "Price per m² of land by feature bin, city effect removed (median and 95% interval, 8 equal-count bins)", height=620), pd.concat(rows)
+
+
+# Expected sign of the Spearman correlation with log price per m² of land, written on 2026-11-08 after the model was built (so not blind;
+# for a new project write it before the first plot). 0 means no clear expectation.
+EXPECTED_SIGN = {
+    "log_land": -1, "log_building": 1, "bedrooms": 1, "bathrooms": 1, "floors": 1, "age_days": 0, "flood_index": -1,
+    "dist_monas_km": -1, "dist_mrt_lrt_km": -1, "dist_busway_km": -1, "dist_toll_km": -1, "dist_mall_km": -1, "dist_hospital_km": -1,
+    "dist_university_km": -1, "dist_cbd_km": -1, "dist_primary_road_km": -1, "spec_electricity_va": 1, "spec_carport": 1,
+    "spec_furnished_level": 1, "dist_river_km": 1, "dist_power_line_km": 1,
+}
+
+
+CLAIMS = [("what an agent asks for a house like this", "yes"), ("what a buyer pays", "no: asking price, no sale price in the data"),
+          ("price trend or price index over time", "no: only listings still active, thinner in older months"),
+          ("every kecamatan equally", "no: thin kecamatan are blank on the map, the rest follow the place names we searched"),]
+
+
+def expectations(rho: pd.Series) -> pd.DataFrame:
+    """Expected sign against the observed Spearman correlation, one row per feature with an expectation."""
+    table = pd.DataFrame({"feature": [LABELS[f] for f in EXPECTED_SIGN], "expected": [{-1: "falls", 0: "unclear", 1: "rises"}[v] for v in EXPECTED_SIGN.values()],
+                          "spearman": [rho[f] for f in EXPECTED_SIGN]})
+    observed = np.sign(table.spearman.round(2))
+    table["as expected"] = np.where(pd.Series(list(EXPECTED_SIGN.values())) == 0, "no expectation", np.where(observed == pd.Series(list(EXPECTED_SIGN.values())), "yes", "NO"))
+    return table.round({"spearman": 2})
+
+
+def text_only_baseline(df: pd.DataFrame) -> pd.DataFrame:
+    """What the title and description words alone explain: TF-IDF + ridge, out-of-fold on the training part. Random folds let it learn
+    place names; folds that hold out whole cities show what is left without them. Only aggregates are printed."""
+    df = add_words(df)
+    y, rows = np.log(df.ppm2_land), []
+    city_median = df.groupby("city").ppm2_land.transform("median")
+    for name, folds in {"random 5-fold": KFold(5, shuffle=True, random_state=0).split(df), "whole cities held out": GroupKFold(5).split(df, groups=df.city)}.items():
+        pred = np.empty(len(df))
+        for a, b in folds:
+            pred[b] = text_model().fit(df.words.iloc[a], y.iloc[a]).predict(df.words.iloc[b])
+        error = np.abs(np.exp(pred) / df.ppm2_land - 1)
+        rows.append({"validation": name, "R² of log price per m²": 1 - ((y - pred) ** 2).sum() / ((y - y.mean()) ** 2).sum(),
+                     "median error of price": error.median(), "city-median baseline error": (np.abs(city_median / df.ppm2_land - 1)).median()})
+    return pd.DataFrame(rows).round(3)
+
+
 if __name__ == "__main__":
     for folder in (FIGURES, TABLES):
         folder.mkdir(parents=True, exist_ok=True)
@@ -283,12 +377,16 @@ if __name__ == "__main__":
     flagged = outliers(df)
     noise = noise_table()
     overview, numeric_stats, categorical_stats = profile(df)
+    text_only = text_only_baseline(df)
 
     figures = {}
     figures["target"] = target_histogram(df)
     figures["city"], city = city_ranges(df)
     figures["target_corr"], rho = target_correlations(df)
+    expected = expectations(rho)
     figures["bivariate"] = bivariate(df)
+    figures["binned"], binned = binned_view(df)
+    figures["histograms"] = histogram_grid(df)
     figures["flags"], flags = flag_effects(df)
     figures["matrix"], pairs = feature_matrix(df)
     figures["missing"] = missing_bars(df)
@@ -298,7 +396,7 @@ if __name__ == "__main__":
     save_pngs(figures, FIGURES, "eda")
     for name, table in {"eda_city": city.round(2), "eda_spearman": rho.round(3).rename("spearman").to_frame(), "eda_correlated_pairs": pairs.round(3),
                         "eda_vif": vif, "eda_flags": flags.round(3), "eda_outliers": flagged, "eda_moran": moran.round(3), "eda_month": by_month.round(3),
-                        "eda_noise_floor": noise.round(3), "eda_profile": overview.round(2), "eda_profile_numeric": numeric_stats.round(3), "eda_profile_categorical": categorical_stats.round(2)}.items():
+                        "eda_noise_floor": noise.round(3), "eda_binned": binned.round(3).set_index("feature"), "eda_expected_signs": expected.set_index("feature"), "eda_text_only": text_only.set_index("validation"), "eda_profile": overview.round(2), "eda_profile_numeric": numeric_stats.round(3), "eda_profile_categorical": categorical_stats.round(2)}.items():
         table.to_csv(TABLES / f"{name}.csv")
 
     plot = plots_html(figures)
@@ -316,15 +414,27 @@ if __name__ == "__main__":
                 f"({', '.join(overview.column[overview.constant])}). The listing identifier is left out.",
                 table_html(overview) + "<h3>Numeric columns and flags</h3>" + table_html(numeric_stats) +
                 "<h3>Categorical columns</h3>" + table_html(categorical_stats)),
+        section("Origin and what the label means", f"Rows are Portal asking prices of houses still on the market, created {df.created_at.min():%Y-%m} to "
+                f"{df.created_at.max():%Y-%m}: listings that sold or were withdrawn have left the site, so older months are thinner and survivors differ from "
+                "what sold. The sample is built from place names in listing URLs and a crawl backlog, not a random draw of the market.",
+                table_html(pd.DataFrame(CLAIMS, columns=["use of the model or map", "supported by this data?"]))),
         section("Target", f"Median {df.ppm2_land.median() / 1e6:.1f} M IDR per m² of land; skew {df.ppm2_land.skew():.1f} raw vs "
                 f"{np.log(df.ppm2_land).skew():.2f} on the log scale, so the model works on log price per m².", plot["target"]),
         section("Cities", f"Medians run from {city['median'].min():.1f} M ({city['median'].idxmin()}) to {city['median'].max():.1f} M "
                 f"({city['median'].idxmax()}). Thin cities: {', '.join(f'{c} ({n})' for c, n in city.n[city.n < 30].items())}.", plot["city"]),
+        section("Shape of every feature", "Histograms of all numeric features; skewed ones on a log10(1 + x) axis.", plot["histograms"]),
         section("Features vs price", f"Strongest: {LABELS[rho.abs().idxmax()]} ({rho[rho.abs().idxmax()]:+.2f}). The flood index"
                 f" is positive only because central Jakarta is both flood-prone and expensive.",
-                plot["target_corr"] + plot["bivariate"]),
+                plot["target_corr"] + plot["bivariate"] + plot["binned"]),
+        section("Expected against observed signs", f"{(expected['as expected'] == 'yes').sum()} of {(expected['as expected'] != 'no expectation').sum()} "
+                f"expectations hold. Mismatches: {', '.join(expected.feature[expected['as expected'] == 'NO']) or 'none'}. "
+                "The expectations were written after the model was built, so this is a check on the domain story, not a blind test.", table_html(expected)),
         section("Text flags, facilities and land title", f"Largest within-city difference: {strongest_flag.feature} "
                 f"({strongest_flag['price difference']:+.0%}, {strongest_flag.listings} listings).", plot["flags"]),
+        section("Text alone", f"Title and description words alone explain R² {text_only.iloc[0, 1]:.2f} of log price per m² with random folds and "
+                f"{text_only.iloc[1, 1]:.2f} when whole cities are held out; median price error {text_only.iloc[0, 2]:.0%} and {text_only.iloc[1, 2]:.0%} against "
+                f"{text_only.iloc[0, 3]:.0%} for the city median. Held-out cities lose most of the text signal, which suggests it leans on place names "
+                "(not tested directly); that fits the text score being the largest model input and unreliable for short notes typed in the app.", table_html(text_only)),
         section("Feature correlations", f"{len(pairs)} pairs move together strongly (|Spearman| at least 0.7) and {len(high_vif)} features have a VIF of "
                 "10 or more: redundant for a linear model, whose coefficients for them cannot be read on their own. Trees cope.",
                 plot["matrix"] + table_html(pairs.round(2)) + table_html(vif.head(10))),

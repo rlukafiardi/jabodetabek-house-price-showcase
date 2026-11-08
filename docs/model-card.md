@@ -23,6 +23,9 @@ features, size and room counts, floors, listing age, keywords from the title and
 major roads, land-use shares within 500 m, rivers, rail and power lines, distance to the nearest of three CBD cores and to
 business centres) and a text model score. 48 features plus the text score. Price = land area x prediction.
 Code: `src/modeling/ensemble.py`. Range: `src/modeling/intervals.py`.
+Why these three (paired CV, 2026-11-08): extra trees lowers the error under both validation schemes; ridge helps only for areas
+the model has not seen (about 0.3 points); XGBoost alone is behind the mean, but extra trees plus ridge already match the full
+mean, so XGBoost is a candidate to drop at the next model gate. Numbers: `docs/decisions-log.md`, entry E25.
 
 ## Training data
 Portal secondary-market house listings created 2025-04 to 2026-08 (still-active listings only: the months of mid-2025 hold about 105 to 126 listings each against about 250 in 2026, so older listings have mostly sold or been withdrawn), collected by polite scraping (3 s per request) of listing
