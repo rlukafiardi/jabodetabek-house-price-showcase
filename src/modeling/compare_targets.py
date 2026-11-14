@@ -17,9 +17,15 @@ TARGETS = {  # name -> column the price is divided by (None: log price, sizes ar
 }
 MODELS = {
     "gbm": lambda: HistGradientBoostingRegressor(max_iter=200, max_depth=3, learning_rate=0.05, random_state=0),
-    "ridge": lambda: make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), RidgeCV(alphas=np.logspace(-2, 3, 20))),
+    "ridge": lambda: make_pipeline(
+        SimpleImputer(strategy="median"), StandardScaler(), RidgeCV(alphas=np.logspace(-2, 3, 20))
+    ),
 }
-REPEATS, FOLDS, BLOCK_DEGREES = 5, 5, 0.1  # a 0.1 degree block is about 11 km, above the ~10 km range of spatial dependence
+REPEATS, FOLDS, BLOCK_DEGREES = (
+    5,
+    5,
+    0.1,
+)  # a 0.1 degree block is about 11 km, above the ~10 km range of spatial dependence
 
 
 def split_folds(df: pd.DataFrame, scheme: str, repeat: int):
@@ -45,7 +51,12 @@ def evaluate(df: pd.DataFrame, scheme: str, model: str, divisor: str | None) -> 
         error = (np.exp(pred) * scale - df.price) / df.price
         per_repeat.append((np.median(np.abs(error)), np.mean(np.abs(error)), np.median(error)))
     median_ape, mean_ape, bias = np.array(per_repeat).T
-    return {"median_ape": median_ape.mean(), "median_ape_sd": median_ape.std(), "mean_ape": mean_ape.mean(), "bias": bias.mean()}
+    return {
+        "median_ape": median_ape.mean(),
+        "median_ape_sd": median_ape.std(),
+        "mean_ape": mean_ape.mean(),
+        "bias": bias.mean(),
+    }
 
 
 if __name__ == "__main__":
@@ -55,7 +66,15 @@ if __name__ == "__main__":
     for scheme in ("random", "spatial blocks"):
         for model in MODELS:
             for name, divisor in TARGETS.items():
-                rows.append({"cv": scheme, "model": model, "target": name, **evaluate(df, scheme.split()[0], model, divisor)})
+                rows.append(
+                    {"cv": scheme, "model": model, "target": name, **evaluate(df, scheme.split()[0], model, divisor)}
+                )
     table = pd.DataFrame(rows)
-    print(table.assign(median_ape=lambda t: (t.median_ape * 100).round(1), median_ape_sd=lambda t: (t.median_ape_sd * 100).round(1),
-                       mean_ape=lambda t: (t.mean_ape * 100).round(1), bias=lambda t: (t.bias * 100).round(1)).to_string(index=False))
+    print(
+        table.assign(
+            median_ape=lambda t: (t.median_ape * 100).round(1),
+            median_ape_sd=lambda t: (t.median_ape_sd * 100).round(1),
+            mean_ape=lambda t: (t.mean_ape * 100).round(1),
+            bias=lambda t: (t.bias * 100).round(1),
+        ).to_string(index=False)
+    )

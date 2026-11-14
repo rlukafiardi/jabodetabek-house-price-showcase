@@ -9,7 +9,14 @@ from src.modeling.split import FITTED_ASOF, TEST_SLUGS, fitted_listings, usable_
 BASIC = ["log_land", "log_building", "bedrooms", "bathrooms", "lat", "lon", "age_days"]
 FLAG = ["coord_is_centroid"]
 SPATIAL = BASIC + FLAG + ["dist_station_km", "dist_toll_km", "dist_monas_km"]
-SPATIAL_PLUS = SPATIAL + ["dist_krl_km", "dist_mrt_lrt_km", "dist_busway_km", "dist_mall_km", "dist_hospital_km", "dist_university_km"]
+SPATIAL_PLUS = SPATIAL + [
+    "dist_krl_km",
+    "dist_mrt_lrt_km",
+    "dist_busway_km",
+    "dist_mall_km",
+    "dist_hospital_km",
+    "dist_university_km",
+]
 FLOOD = ["flood_index"]
 FLOORS = ["floors", "floors_missing"]  # floors is missing for ~12% of listings, not at random
 

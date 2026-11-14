@@ -15,7 +15,10 @@ from src.modeling.ensemble import MODEL_FEATURES, add_words, fit_parts, target, 
 from src.modeling.intervals import TABLE as RANGES
 
 SERVING = ROOT / "serving"
-TEXT_SCORE_QUANTILES = (0.01, 0.99)  # the ridge text model gives extreme values for short texts full of strong words: clip to the training range
+TEXT_SCORE_QUANTILES = (
+    0.01,
+    0.99,
+)  # the ridge text model gives extreme values for short texts full of strong words: clip to the training range
 
 
 def city_by_code(train: pd.DataFrame) -> dict[str, str]:
@@ -39,16 +42,25 @@ def fit_bundle(train: pd.DataFrame, ranges: pd.DataFrame, info: dict) -> dict:
         "text_model": text_model().fit(train.words, y),
         "text_score_range": tuple(np.quantile(inner_scores, TEXT_SCORE_QUANTILES)),
         "reference": reference_values(train, inner_scores),
-        "columns": [*MODEL_FEATURES, "text_score"], "age_days": float(train.age_days.min()),  # a listing posted now looks like the freshest training listing
-        "ranges": ranges, "city_by_code": city_by_code(train), "info": {"trained_rows": len(train), **info},
+        "columns": [*MODEL_FEATURES, "text_score"],
+        "age_days": float(train.age_days.min()),  # a listing posted now looks like the freshest training listing
+        "ranges": ranges,
+        "city_by_code": city_by_code(train),
+        "info": {"trained_rows": len(train), **info},
     }
 
 
 def build() -> None:
     train = add_words(load_usable("train"))
     holdout = pd.read_csv(ROOT / "reports" / "tables" / "final_test.csv", index_col="model").iloc[0]
-    bundle = fit_bundle(train, pd.read_csv(RANGES, index_col="city"),
-                        {"holdout_median_error": float(holdout.median_ape), "holdout_interval": [float(holdout.median_ci_low), float(holdout.median_ci_high)]})
+    bundle = fit_bundle(
+        train,
+        pd.read_csv(RANGES, index_col="city"),
+        {
+            "holdout_median_error": float(holdout.median_ape),
+            "holdout_interval": [float(holdout.median_ci_low), float(holdout.median_ci_high)],
+        },
+    )
     (SERVING / "model").mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, SERVING / "model" / "model.joblib", compress=3)
     for source in [*EXTERNAL.glob("osm_*"), SPATIAL / "big_kecamatan_jabodetabek.geojson", FLOOD_TIF]:
@@ -56,7 +68,9 @@ def build() -> None:
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target_path)
     size = sum(f.stat().st_size for f in SERVING.rglob("*") if f.is_file()) / 1e6
-    print(f"serving/ {size:.0f} MB; model.joblib {(SERVING / 'model' / 'model.joblib').stat().st_size / 1e6:.0f} MB; {len(train)} training rows")
+    print(
+        f"serving/ {size:.0f} MB; model.joblib {(SERVING / 'model' / 'model.joblib').stat().st_size / 1e6:.0f} MB; {len(train)} training rows"
+    )
 
 
 if __name__ == "__main__":

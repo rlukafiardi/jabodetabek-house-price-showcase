@@ -8,7 +8,9 @@ from src.config import SPATIAL
 
 @cache
 def _kecamatan() -> gpd.GeoDataFrame:
-    return gpd.read_file(SPATIAL / "big_kecamatan_jabodetabek.geojson")[["kdcpum", "wadmkc", "geometry"]]  # read once per process
+    return gpd.read_file(SPATIAL / "big_kecamatan_jabodetabek.geojson")[
+        ["kdcpum", "wadmkc", "geometry"]
+    ]  # read once per process
 
 
 def add_admin_areas(df: pd.DataFrame) -> pd.DataFrame:

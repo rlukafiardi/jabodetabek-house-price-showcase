@@ -32,7 +32,10 @@ def add_words(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def text_model():
-    return make_pipeline(TfidfVectorizer(min_df=5, max_df=0.5, ngram_range=(1, 2), sublinear_tf=True), RidgeCV(alphas=np.logspace(-1, 2, 8)))
+    return make_pipeline(
+        TfidfVectorizer(min_df=5, max_df=0.5, ngram_range=(1, 2), sublinear_tf=True),
+        RidgeCV(alphas=np.logspace(-1, 2, 8)),
+    )
 
 
 def text_scores(train: pd.DataFrame, test: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
@@ -46,18 +49,41 @@ def text_scores(train: pd.DataFrame, test: pd.DataFrame) -> tuple[np.ndarray, np
 MEMBERS = ("xgboost", "extra trees", "ridge")
 
 
-def fit_parts(x: pd.DataFrame, y: pd.Series, xgb_params: dict = XGB_PARAMS, members: tuple[str, ...] = MEMBERS, extra_leaf: int = 1) -> dict:
+def fit_parts(
+    x: pd.DataFrame,
+    y: pd.Series,
+    xgb_params: dict = XGB_PARAMS,
+    members: tuple[str, ...] = MEMBERS,
+    extra_leaf: int = 1,
+) -> dict:
     """The members of the ensemble, fitted: tuned XGBoost, extra trees (best E6 settings; leaves of extra_leaf listings) and ridge.
     With extra_leaf=1 the extra trees reproduce every training listing exactly (see src/analysis/memorisation.py)."""
-    extra = make_pipeline(SimpleImputer(strategy="median"), ExtraTreesRegressor(n_estimators=300, max_features=0.33, min_samples_leaf=extra_leaf, random_state=0, n_jobs=-1))
-    ridge = make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler(), RidgeCV(alphas=np.logspace(-1, 3, 9)))
-    models = {"xgboost": lambda: XGBRegressor(**xgb_params).fit(x, y), "extra trees": lambda: extra.fit(x, y), "ridge": lambda: ridge.fit(x, y)}
+    extra = make_pipeline(
+        SimpleImputer(strategy="median"),
+        ExtraTreesRegressor(
+            n_estimators=300, max_features=0.33, min_samples_leaf=extra_leaf, random_state=0, n_jobs=-1
+        ),
+    )
+    ridge = make_pipeline(
+        SimpleImputer(strategy="median", add_indicator=True), StandardScaler(), RidgeCV(alphas=np.logspace(-1, 3, 9))
+    )
+    models = {
+        "xgboost": lambda: XGBRegressor(**xgb_params).fit(x, y),
+        "extra trees": lambda: extra.fit(x, y),
+        "ridge": lambda: ridge.fit(x, y),
+    }
     return {name: models[name]() for name in members}
 
 
-def ensemble(features: list[str], text: bool = False, xgb_params: dict = XGB_PARAMS,
-             members: tuple[str, ...] = MEMBERS, extra_leaf: int = 1):
+def ensemble(
+    features: list[str],
+    text: bool = False,
+    xgb_params: dict = XGB_PARAMS,
+    members: tuple[str, ...] = MEMBERS,
+    extra_leaf: int = 1,
+):
     """Mean of XGBoost, extra trees (best E6 settings) and ridge. text=True adds the out-of-fold text score as a feature."""
+
     def fit_predict(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
         columns = list(features)
         if text:
@@ -66,6 +92,7 @@ def ensemble(features: list[str], text: bool = False, xgb_params: dict = XGB_PAR
             columns += ["text_score"]
         parts = fit_parts(train[columns], target(train), xgb_params, members, extra_leaf)
         return np.mean([m.predict(test[columns]) for m in parts.values()], axis=0)
+
     return fit_predict
 
 

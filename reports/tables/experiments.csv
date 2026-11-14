@@ -151,8 +151,6 @@ date,experiment,cv,n,median_ape,median_ape_sd,mean_ape,bias
 2026-10-30,E18 ensemble + neighbourhood context,spatial,3469,23.0,0.43,33.53,-3.22
 2026-10-30,E24 ensemble final + land title,random,3469,20.26,0.16,30.77,-0.92
 2026-10-30,E24 ensemble final + land title,spatial,3469,23.0,0.52,33.45,-2.88
-2026-11-08,E25a final ensemble (reference),random,3896,20.15,0.09,30.27,-1.13
-2026-11-08,E25a final ensemble (reference),spatial,3896,23.07,0.47,32.85,-3.74
 2026-11-08,E25b final without ridge,random,3896,19.94,0.23,30.37,-1.43
 2026-11-08,E25b final without ridge,spatial,3896,23.39,0.63,33.36,-4.36
 2026-11-08,E25c final without extra trees,random,3896,21.02,0.17,30.86,-0.91
@@ -167,3 +165,9 @@ date,experiment,cv,n,median_ape,median_ape_sd,mean_ape,bias
 2026-11-08,E25g ridge alone,spatial,3896,24.37,0.44,34.63,-2.73
 2026-11-08,E25h final plus LightGBM,random,3896,20.1,0.14,30.19,-1.27
 2026-11-08,E25h final plus LightGBM,spatial,3896,23.03,0.38,32.82,-3.48
+2026-11-08,E25a final ensemble (reference),random,3896,20.1,0.12,30.28,-1.1
+2026-11-08,E25a final ensemble (reference),spatial,3896,23.1,0.43,32.87,-3.59
+2026-11-08,E26a 0 VA electricity as missing,random,3896,20.14,0.11,30.28,-1.12
+2026-11-08,E26a 0 VA electricity as missing,spatial,3896,23.08,0.38,32.85,-3.72
+2026-11-08,"E26b 0 VA electricity kept, plus a zero flag",random,3896,20.13,0.14,30.28,-1.19
+2026-11-08,"E26b 0 VA electricity kept, plus a zero flag",spatial,3896,23.04,0.34,32.89,-3.59

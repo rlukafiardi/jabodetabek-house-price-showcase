@@ -5,7 +5,14 @@ from src.config import LAYERS_RAW as RAW
 FLOOD_URL = "https://gis.bnpb.go.id/server/rest/services/inarisk/INDEKS_BAHAYA_BANJIR/ImageServer/exportImage"
 FLOOD_TIF = RAW / "inarisk" / "flood_hazard.tif"
 # Jabodetabek at about 30 m (0.00027 degrees), as the InaRISK to QGIS plugin requests it; the server caps the size at 4000 x 4000
-PARAMS = {"bbox": "106.4,-6.8,107.3,-5.9", "bboxSR": 4326, "imageSR": 4326, "size": "3334,3334", "format": "tiff", "f": "image"}
+PARAMS = {
+    "bbox": "106.4,-6.8,107.3,-5.9",
+    "bboxSR": 4326,
+    "imageSR": 4326,
+    "size": "3334,3334",
+    "format": "tiff",
+    "f": "image",
+}
 USER_AGENT = "Mozilla/5.0 (research; personal non-commercial project; contact you@example.com)"
 
 if __name__ == "__main__":

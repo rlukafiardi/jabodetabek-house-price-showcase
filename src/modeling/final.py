@@ -8,8 +8,16 @@ from src.ingestion.parse import SPEC_FEATURES, TEXT_FLAGS
 from src.modeling.compare_targets import FEATURES
 
 E4_FEATURES = FEATURES + list(TEXT_FLAGS)
-XGB_PARAMS = {"n_estimators": 400, "max_depth": 3, "learning_rate": 0.02, "subsample": 0.7, "colsample_bytree": 0.8,
-              "min_child_weight": 1, "reg_lambda": 5.0, "random_state": 0}  # best of the E6 search (spatial-block CV)
+XGB_PARAMS = {
+    "n_estimators": 400,
+    "max_depth": 3,
+    "learning_rate": 0.02,
+    "subsample": 0.7,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 1,
+    "reg_lambda": 5.0,
+    "random_state": 0,
+}  # best of the E6 search (spatial-block CV)
 DROPPED_GROUPS = ["amenity distances", "toll distance"]  # E7: dropping them did not hurt spatial-block CV
 FEATURE_GROUPS = {
     "coordinates": ["lat", "lon"],

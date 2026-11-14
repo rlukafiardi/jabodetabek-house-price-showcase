@@ -35,6 +35,13 @@ if __name__ == "__main__":
     for scheme in ("random", "spatial"):
         for fraction in FRACTIONS:
             median_ape = curve(df, model, scheme, fraction)
-            rows.append({"cv": scheme, "fraction": fraction, "train_rows": int(len(df) * 0.8 * fraction), "median_ape": round(median_ape * 100, 2)})
+            rows.append(
+                {
+                    "cv": scheme,
+                    "fraction": fraction,
+                    "train_rows": int(len(df) * 0.8 * fraction),
+                    "median_ape": round(median_ape * 100, 2),
+                }
+            )
             print(rows[-1], flush=True)
     pd.DataFrame(rows).to_csv(RESULTS, index=False)

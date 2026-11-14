@@ -27,25 +27,43 @@ def out_of_fold_log_ratio(df: pd.DataFrame, repeats: int = REPEATS) -> pd.DataFr
         pred = np.empty(len(df))
         for train_idx, test_idx in split_folds(df, "spatial", repeat):
             pred[test_idx] = fit_predict(df.iloc[train_idx], df.iloc[test_idx])
-        rows.append(pd.DataFrame({"city": df.city.to_numpy(), "land_area": df.land_area.to_numpy(), "log_ratio": np.log(df.price / df.land_area).to_numpy() - pred}))
+        rows.append(
+            pd.DataFrame(
+                {
+                    "city": df.city.to_numpy(),
+                    "land_area": df.land_area.to_numpy(),
+                    "log_ratio": np.log(df.price / df.land_area).to_numpy() - pred,
+                }
+            )
+        )
     return pd.concat(rows, ignore_index=True)
 
 
 def range_table(errors: pd.DataFrame) -> pd.DataFrame:
     """Multipliers of the point estimate (80% range: low, high; 50% range: low_50, high_50) for each city and for 'all cities'."""
+
     def quantiles(part: pd.Series) -> dict[str, float]:
-        return {"low": float(np.exp(part.quantile(LOW))), "high": float(np.exp(part.quantile(HIGH))),
-                "low_50": float(np.exp(part.quantile(LOW_50))), "high_50": float(np.exp(part.quantile(HIGH_50))), "n": len(part) // REPEATS}
+        return {
+            "low": float(np.exp(part.quantile(LOW))),
+            "high": float(np.exp(part.quantile(HIGH))),
+            "low_50": float(np.exp(part.quantile(LOW_50))),
+            "high_50": float(np.exp(part.quantile(HIGH_50))),
+            "n": len(part) // REPEATS,
+        }
+
     table = {"all cities": quantiles(errors.log_ratio)}
-    table |= {city: quantiles(part.log_ratio) for city, part in errors.groupby("city") if len(part) >= MIN_PER_CITY * REPEATS}
+    table |= {
+        city: quantiles(part.log_ratio) for city, part in errors.groupby("city") if len(part) >= MIN_PER_CITY * REPEATS
+    }
     large = errors[errors.land_area > LARGE_PLOT_M2]
     if len(large) >= MIN_PER_CITY * REPEATS:
         table[LARGE_PLOTS] = quantiles(large.log_ratio)  # all cities together: too few large plots per city
     return pd.DataFrame(table).T.rename_axis("city")
 
 
-def apply_range(estimate: np.ndarray, city: pd.Series, table: pd.DataFrame, column: str = "",
-                land_area: pd.Series | None = None) -> tuple[np.ndarray, np.ndarray]:
+def apply_range(
+    estimate: np.ndarray, city: pd.Series, table: pd.DataFrame, column: str = "", land_area: pd.Series | None = None
+) -> tuple[np.ndarray, np.ndarray]:
     """Range around the estimates: the 80% range by default, column="_50" for the 50% range. With land_area, plots above
     LARGE_PLOT_M2 get the large-plot range instead of their city's."""
     row = table.reindex(city).fillna(table.loc["all cities"])
@@ -68,7 +86,11 @@ if __name__ == "__main__":
     calibrated = range_table(errors[~half].reset_index(drop=True))
     check = errors[half]
     for label, size_aware in (("city only", False), ("city + large plots", True)):
-        low, high = apply_range(np.ones(len(check)), check.city, calibrated, land_area=check.land_area if size_aware else None)
+        low, high = apply_range(
+            np.ones(len(check)), check.city, calibrated, land_area=check.land_area if size_aware else None
+        )
         inside = (np.exp(check.log_ratio.to_numpy()) >= low) & (np.exp(check.log_ratio.to_numpy()) <= high)
         large = (check.land_area > LARGE_PLOT_M2).to_numpy()
-        print(f"{label}: 80% range covers {inside.mean():.1%} overall, {inside[large].mean():.1%} on plots over {LARGE_PLOT_M2} m², {inside[~large].mean():.1%} on the rest")
+        print(
+            f"{label}: 80% range covers {inside.mean():.1%} overall, {inside[large].mean():.1%} on plots over {LARGE_PLOT_M2} m², {inside[~large].mean():.1%} on the rest"
+        )

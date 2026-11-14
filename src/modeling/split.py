@@ -7,9 +7,15 @@ from src.config import INTERIM, PROCESSED, STATE
 
 JABODETABEK = "Jakarta|Tangerang|Bekasi|Depok|Bogor"
 TEST_SLUGS = PROCESSED / "test_slugs.txt"  # current holdout (v2); gitignored; written once, never regenerated
-FITTED_SLUGS = STATE / "reference" / "train_slugs.txt"  # the rows the live model was fitted on, one slug per line; written by the gate, copied by `make promote`
-FITTED_ASOF = STATE / "reference" / "train_asof.txt"  # the instant `age_days` is measured from for those rows (ISO time, UTC)
-FROZEN_V1 = PROCESSED / "frozen_v1_slugs.txt"  # every usable slug at the first data freeze; the v2 holdout comes from newer rows only
+FITTED_SLUGS = (
+    STATE / "reference" / "train_slugs.txt"
+)  # the rows the live model was fitted on, one slug per line; written by the gate, copied by `make promote`
+FITTED_ASOF = (
+    STATE / "reference" / "train_asof.txt"
+)  # the instant `age_days` is measured from for those rows (ISO time, UTC)
+FROZEN_V1 = (
+    PROCESSED / "frozen_v1_slugs.txt"
+)  # every usable slug at the first data freeze; the v2 holdout comes from newer rows only
 SEED = 20261029
 MAX_ROOMS = 8  # more bedrooms or bathrooms means a boarding house, guesthouse or office: out of scope
 DUPLICATE_KEY = ["price", "land_area", "building_area", "district"]
@@ -52,7 +58,9 @@ if __name__ == "__main__":
     all_usable = usable_listings()
     df = new_since_v1(all_usable)
     test = carve_test(df)
-    print(f"{len(all_usable)} usable after de-duplication, {len(df)} of them new since the v1 freeze, holdout would be {len(test)}")
+    print(
+        f"{len(all_usable)} usable after de-duplication, {len(df)} of them new since the v1 freeze, holdout would be {len(test)}"
+    )
     print(df.assign(test=df.slug.isin(test)).groupby("city").test.agg(["size", "sum"]).to_string())
     if "--write" in sys.argv:
         if TEST_SLUGS.exists():

@@ -9,12 +9,23 @@ def errors() -> pd.DataFrame:
     n = 600 * REPEATS  # enough large plots to pass the minimum per band
     land = np.where(np.arange(n) % 4 == 0, LARGE_PLOT_M2 + 100, 100)
     spread = np.where(land > LARGE_PLOT_M2, 0.6, 0.2)  # large plots are harder
-    return pd.DataFrame({"city": np.where(np.arange(n) % 2 == 0, "Kota A", "Kota B"), "land_area": land, "log_ratio": rng.normal(0, 1, n) * spread})
+    return pd.DataFrame(
+        {
+            "city": np.where(np.arange(n) % 2 == 0, "Kota A", "Kota B"),
+            "land_area": land,
+            "log_ratio": rng.normal(0, 1, n) * spread,
+        }
+    )
 
 
 def test_ranges_are_ordered_and_contain_the_estimate():
     table = range_table(errors())
-    assert (table.low < table.low_50).all() and (table.low_50 < 1).all() and (1 < table.high_50).all() and (table.high_50 < table.high).all()
+    assert (
+        (table.low < table.low_50).all()
+        and (table.low_50 < 1).all()
+        and (1 < table.high_50).all()
+        and (table.high_50 < table.high).all()
+    )
 
 
 def test_large_plot_range_is_wider_than_the_overall_one():

@@ -34,7 +34,11 @@ if __name__ == "__main__":
     result.round(4).to_csv(TABLES / "temporal_backtest.csv", index=False)
 
     early, late = df[month <= "2026-03"], df[month >= "2026-06"]
-    drift_table(early, late, [f for f in MODEL_FEATURES if f != "age_days"]).round(3).to_csv(TABLES / "drift_early_vs_late.csv", index=False)
-    print(drift_table(early, late, [f for f in MODEL_FEATURES if f != "age_days"]).head(8).round(3).to_string(index=False))
+    drift_table(early, late, [f for f in MODEL_FEATURES if f != "age_days"]).round(3).to_csv(
+        TABLES / "drift_early_vs_late.csv", index=False
+    )
+    print(
+        drift_table(early, late, [f for f in MODEL_FEATURES if f != "age_days"]).head(8).round(3).to_string(index=False)
+    )
     level = df.assign(month=month, ppm2=df.price / df.land_area).groupby("month").ppm2.median() / 1e6
     print("median price per m² by month (M IDR):", level.round(1).to_dict())

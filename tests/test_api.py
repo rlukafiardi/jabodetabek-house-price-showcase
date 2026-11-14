@@ -39,14 +39,34 @@ def test_health_and_model(client):
 
 
 def test_estimate_passes_the_house_to_the_estimator(client, stub):
-    response = client.post("/estimate", json={**BODY, "floors": 2, "notes": "Rumah baru", "specs": {"electricity_va": 3500, "carport": None}})
+    response = client.post(
+        "/estimate",
+        json={**BODY, "floors": 2, "notes": "Rumah baru", "specs": {"electricity_va": 3500, "carport": None}},
+    )
     assert response.status_code == 200
     house = stub.seen[0]
-    assert (house.land_area, house.floors, house.notes, house.specs) == (120, 2, "Rumah baru", {"spec_electricity_va": 3500})
+    assert (house.land_area, house.floors, house.notes, house.specs) == (
+        120,
+        2,
+        "Rumah baru",
+        {"spec_electricity_va": 3500},
+    )
 
 
-@pytest.mark.parametrize("change", [{"land_area": 5}, {"land_area": 99_999}, {"bedrooms": 0}, {"bathrooms": 20}, {"lat": 40}, {"lon": 0},
-                                    {"notes": "x" * 2001}, {"floors": 0}, {"specs": {"furnished_level": 5}}])
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"land_area": 5},
+        {"land_area": 99_999},
+        {"bedrooms": 0},
+        {"bathrooms": 20},
+        {"lat": 40},
+        {"lon": 0},
+        {"notes": "x" * 2001},
+        {"floors": 0},
+        {"specs": {"furnished_level": 5}},
+    ],
+)
 def test_out_of_range_inputs_are_rejected(client, change):
     assert client.post("/estimate", json={**BODY, **change}).status_code == 422
 
@@ -57,7 +77,11 @@ def test_missing_required_field_is_rejected(client):
 
 def test_point_outside_the_area_is_a_422_with_a_message(client):
     response = client.post("/estimate", json={**BODY, "lat": -5.9})
-    assert response.status_code == 422 and response.json()["detail"]["code"] == "outside_area" and "outside" in response.json()["detail"]["message"]
+    assert (
+        response.status_code == 422
+        and response.json()["detail"]["code"] == "outside_area"
+        and "outside" in response.json()["detail"]["message"]
+    )
 
 
 def test_rate_limit_per_client(client):
@@ -67,8 +91,12 @@ def test_rate_limit_per_client(client):
 
 
 def test_cors_only_for_the_allowed_origin(client):
-    allowed = client.options("/estimate", headers={"origin": "https://example.app", "access-control-request-method": "POST"})
-    other = client.options("/estimate", headers={"origin": "https://evil.example", "access-control-request-method": "POST"})
+    allowed = client.options(
+        "/estimate", headers={"origin": "https://example.app", "access-control-request-method": "POST"}
+    )
+    other = client.options(
+        "/estimate", headers={"origin": "https://evil.example", "access-control-request-method": "POST"}
+    )
     assert allowed.headers.get("access-control-allow-origin") == "https://example.app"
     assert "access-control-allow-origin" not in other.headers
 
@@ -80,13 +108,19 @@ def test_docs_are_off_by_default(client):
 @pytest.mark.parametrize("field", ["lat", "lon", "land_area", "building_area", "floors"])
 @pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity"])
 def test_nan_and_infinity_are_refused_not_a_server_error(client, field, bad):
-    body = '{"lat": -6.26, "lon": 106.81, "land_area": 120, "building_area": 150, "bedrooms": 3, "bathrooms": 2, "floors": 2}'.replace(f'"{field}": ', f'"{field}": {bad}, "_": ', 1)
+    body = '{"lat": -6.26, "lon": 106.81, "land_area": 120, "building_area": 150, "bedrooms": 3, "bathrooms": 2, "floors": 2}'.replace(
+        f'"{field}": ', f'"{field}": {bad}, "_": ', 1
+    )
     assert client.post("/estimate", content=body, headers={"content-type": "application/json"}).status_code == 422
 
 
 def test_a_huge_body_is_refused_before_it_is_read(client, stub):
-    assert client.post("/estimate", content=b"x" * 40_000, headers={"content-type": "application/json"}).status_code == 413
-    streamed = (chunk for chunk in [b'{"notes": "', b"x" * 20_000, b"x" * 20_000, b'"}'])  # no Content-Length: the limit applies while it streams in
+    assert (
+        client.post("/estimate", content=b"x" * 40_000, headers={"content-type": "application/json"}).status_code == 413
+    )
+    streamed = (
+        chunk for chunk in [b'{"notes": "', b"x" * 20_000, b"x" * 20_000, b'"}']
+    )  # no Content-Length: the limit applies while it streams in
     assert client.post("/estimate", content=streamed, headers={"content-type": "application/json"}).status_code == 413
     assert stub.seen == []
     assert client.post("/estimate", json=BODY).status_code == 200  # a normal request still passes
@@ -101,5 +135,7 @@ def test_global_cap_holds_even_when_every_request_claims_a_new_address(monkeypat
     monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "100")
     monkeypatch.setenv("GLOBAL_LIMIT_PER_MINUTE", "3")
     with TestClient(create_app(stub)) as c:
-        codes = [c.post("/estimate", json=BODY, headers={"x-forwarded-for": f"198.51.100.{i}"}).status_code for i in range(6)]
+        codes = [
+            c.post("/estimate", json=BODY, headers={"x-forwarded-for": f"198.51.100.{i}"}).status_code for i in range(6)
+        ]
     assert codes == [200, 200, 200, 429, 429, 429]

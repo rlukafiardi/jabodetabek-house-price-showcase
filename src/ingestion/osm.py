@@ -20,11 +20,24 @@ PAUSE_SECONDS = 5  # the public Overpass server is shared; keep requests spaced
 
 
 def fetch_points(query: str) -> pd.DataFrame:
-    response = httpx.post(OVERPASS_URL, data={"data": f"[out:json][timeout:60];{query}out center;"}, headers={"User-Agent": USER_AGENT}, timeout=90)
+    response = httpx.post(
+        OVERPASS_URL,
+        data={"data": f"[out:json][timeout:60];{query}out center;"},
+        headers={"User-Agent": USER_AGENT},
+        timeout=90,
+    )
     response.raise_for_status()
     return pd.DataFrame(
-        [{"osm_id": e["id"], "lat": e.get("lat") or e["center"]["lat"], "lon": e.get("lon") or e["center"]["lon"], "name": e["tags"].get("name"), **{k: e["tags"].get(k) for k in ("station", "network")}}
-         for e in response.json()["elements"]]
+        [
+            {
+                "osm_id": e["id"],
+                "lat": e.get("lat") or e["center"]["lat"],
+                "lon": e.get("lon") or e["center"]["lon"],
+                "name": e["tags"].get("name"),
+                **{k: e["tags"].get(k) for k in ("station", "network")},
+            }
+            for e in response.json()["elements"]
+        ]
     )
 
 

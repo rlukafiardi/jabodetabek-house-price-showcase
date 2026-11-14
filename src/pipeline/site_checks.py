@@ -6,7 +6,17 @@ from pathlib import Path
 
 from src.features.aggregate import MIN_LISTINGS
 
-SITE_KEYS = {"code", "name", "city", "n", "median", "p25", "p75", "cls", "mixed"}  # the only properties the site data may carry
+SITE_KEYS = {
+    "code",
+    "name",
+    "city",
+    "n",
+    "median",
+    "p25",
+    "p75",
+    "cls",
+    "mixed",
+}  # the only properties the site data may carry
 LAYER_KEYS = {"name", "kind"}  # the map layers (public OpenStreetMap places and lines) carry nothing else
 SHRINK_MIN = 0.9  # fewer priced areas or H3 cells than 90% of what is live is a bad refresh
 MEDIAN_MOVE_MAX = 0.15  # the overall median price moving more than 15% in a month is a bad refresh, not a market
@@ -40,5 +50,7 @@ def guard_problems(new: dict, live: dict) -> list[str]:
             problems.append(f"{label} fell from {live[key]} to {new[key]}")
     move = new["overall"]["median"] / live["overall"]["median"] - 1
     if abs(move) > MEDIAN_MOVE_MAX:
-        problems.append(f"the overall median price per m² moved {move:+.0%} ({live['overall']['median']} to {new['overall']['median']} million)")
+        problems.append(
+            f"the overall median price per m² moved {move:+.0%} ({live['overall']['median']} to {new['overall']['median']} million)"
+        )
     return problems

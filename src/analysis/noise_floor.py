@@ -24,16 +24,31 @@ def pair_gaps(df: pd.DataFrame) -> pd.DataFrame:
 
 def noise_table() -> pd.DataFrame:
     df = pd.read_csv(INTERIM / "portal_listings.csv")
-    df = df[df.city.str.contains(JABODETABEK) & (df.status == "active") & df.on_market & (df.bedrooms <= MAX_ROOMS) & (df.bathrooms <= MAX_ROOMS)]
+    df = df[
+        df.city.str.contains(JABODETABEK)
+        & (df.status == "active")
+        & df.on_market
+        & (df.bedrooms <= MAX_ROOMS)
+        & (df.bathrooms <= MAX_ROOMS)
+    ]
     df = df[~df.slug.isin(TEST_SLUGS.read_text(encoding="utf-8").split())]
     df = df[df.groupby(KEY).price.transform("size") >= 2]
     gaps = pair_gaps(df)
     different = gaps[gaps.gap > 0].gap
     # two independent noisy asking prices of one house differ by sqrt(2) times the single-listing spread (normal approximation)
-    return pd.DataFrame([{"pairs": len(gaps), "groups": df.groupby(KEY).ngroups, "share with equal price": (gaps.gap == 0).mean(),
-                          "median gap, all pairs": gaps.gap.median(), "median gap, unequal prices": different.median(),
-                          "implied median error, all pairs": gaps.gap.median() / np.sqrt(2),
-                          "implied median error, unequal prices": different.median() / np.sqrt(2)}])
+    return pd.DataFrame(
+        [
+            {
+                "pairs": len(gaps),
+                "groups": df.groupby(KEY).ngroups,
+                "share with equal price": (gaps.gap == 0).mean(),
+                "median gap, all pairs": gaps.gap.median(),
+                "median gap, unequal prices": different.median(),
+                "implied median error, all pairs": gaps.gap.median() / np.sqrt(2),
+                "implied median error, unequal prices": different.median() / np.sqrt(2),
+            }
+        ]
+    )
 
 
 if __name__ == "__main__":

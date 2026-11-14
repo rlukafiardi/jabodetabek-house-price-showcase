@@ -8,18 +8,29 @@ import calendar
 import os
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
 PROJECT, REGION, SERVICE = "jabodetabek-house-price", "asia-southeast2", "api"
-FREE = {"requests": 2_000_000, "vcpu_s": 180_000, "gib_s": 360_000}  # Cloud Run request-based billing, per month (free-features page, read 2026-10-31)
+FREE = {
+    "requests": 2_000_000,
+    "vcpu_s": 180_000,
+    "gib_s": 360_000,
+}  # Cloud Run request-based billing, per month (free-features page, read 2026-10-31)
 FREE_REGISTRY_GB, FREE_BUCKET_GB = 0.5, 5.0
-FREE_CLASS_A, FREE_CLASS_B = 5_000, 50_000  # Cloud Storage operations a month in a free-tier US region; the bucket is in us-central1
+FREE_CLASS_A, FREE_CLASS_B = (
+    5_000,
+    50_000,
+)  # Cloud Storage operations a month in a free-tier US region; the bucket is in us-central1
 CLASS_A = {"WriteObject", "ListObjects"}  # the methods this pipeline uses; the 2026-11 bill matched these two
 CLASS_B = {"GetObjectMetadata", "ReadObject"}
 WARN_SHARE = 0.5
-METRICS = {"vcpu_s": "container/cpu/allocation_time", "gib_s": "container/memory/allocation_time", "instance_s": "container/billable_instance_time"}
+METRICS = {
+    "vcpu_s": "container/cpu/allocation_time",
+    "gib_s": "container/memory/allocation_time",
+    "instance_s": "container/billable_instance_time",
+}
 METADATA = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 
 
@@ -27,7 +38,9 @@ def access_token() -> str:
     try:
         return httpx.get(METADATA, headers={"Metadata-Flavor": "Google"}, timeout=2).json()["access_token"]
     except httpx.HTTPError:  # not on Google Cloud: the project-local login
-        return subprocess.run(["./gcloud.sh", "auth", "print-access-token"], check=True, capture_output=True, text=True).stdout.strip()
+        return subprocess.run(
+            ["./gcloud.sh", "auth", "print-access-token"], check=True, capture_output=True, text=True
+        ).stdout.strip()
 
 
 def get(token: str, url: str, **params) -> dict:
@@ -38,37 +51,69 @@ def get(token: str, url: str, **params) -> dict:
 
 def series(token: str, metric: str, start: datetime, end: datetime, group_by: str | None = None) -> dict[str, float]:
     """Sum of one Cloud Run metric over [start, end), per value of `group_by` (or one total under "")."""
-    iso = lambda t: t.isoformat().replace("+00:00", "Z")
-    params = {"filter": f'metric.type="run.googleapis.com/{metric}" AND resource.labels.service_name="{SERVICE}"', "interval.startTime": iso(start),
-              "interval.endTime": iso(end), "aggregation.alignmentPeriod": f"{int((end - start).total_seconds())}s", "aggregation.perSeriesAligner": "ALIGN_SUM",
-              "aggregation.crossSeriesReducer": "REDUCE_SUM"}
+
+    def iso(t):
+        return t.isoformat().replace("+00:00", "Z")
+
+    params = {
+        "filter": f'metric.type="run.googleapis.com/{metric}" AND resource.labels.service_name="{SERVICE}"',
+        "interval.startTime": iso(start),
+        "interval.endTime": iso(end),
+        "aggregation.alignmentPeriod": f"{int((end - start).total_seconds())}s",
+        "aggregation.perSeriesAligner": "ALIGN_SUM",
+        "aggregation.crossSeriesReducer": "REDUCE_SUM",
+    }
     if group_by:
         params["aggregation.groupByFields"] = group_by
     totals: dict[str, float] = {}
-    for s in get(token, f"https://monitoring.googleapis.com/v3/projects/{PROJECT}/timeSeries", **params).get("timeSeries", []):
+    for s in get(token, f"https://monitoring.googleapis.com/v3/projects/{PROJECT}/timeSeries", **params).get(
+        "timeSeries", []
+    ):
         key = s["metric"].get("labels", {}).get(group_by.split(".")[-1], "") if group_by else ""
-        totals[key] = totals.get(key, 0.0) + sum(float(p["value"].get("int64Value") or p["value"].get("doubleValue") or 0) for p in s["points"])
+        totals[key] = totals.get(key, 0.0) + sum(
+            float(p["value"].get("int64Value") or p["value"].get("doubleValue") or 0) for p in s["points"]
+        )
     return totals
 
 
 def period(token: str, start: datetime, end: datetime) -> dict[str, float]:
     codes = series(token, "request_count", start, end, "metric.labels.response_code")
-    out = {"requests": sum(codes.values()), "429s": codes.get("429", 0.0), "5xx": sum(v for k, v in codes.items() if k.startswith("5"))}
+    out = {
+        "requests": sum(codes.values()),
+        "429s": codes.get("429", 0.0),
+        "5xx": sum(v for k, v in codes.items() if k.startswith("5")),
+    }
     out.update({name: series(token, metric, start, end).get("", 0.0) for name, metric in METRICS.items()})
     return out
 
 
 def registry_gb(token: str) -> tuple[int, float]:
-    images = get(token, f"https://artifactregistry.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/repositories/{SERVICE}/dockerImages").get("dockerImages", [])
+    images = get(
+        token,
+        f"https://artifactregistry.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/repositories/{SERVICE}/dockerImages",
+    ).get("dockerImages", [])
     return len(images), sum(int(i.get("imageSizeBytes", 0)) for i in images) / 1e9
 
 
 def bucket_gb(token: str) -> tuple[int, float]:
-    names = [os.environ["BUCKET"]] if os.environ.get("BUCKET") else [b["name"] for b in get(token, "https://storage.googleapis.com/storage/v1/b", project=PROJECT).get("items", [])]
+    names = (
+        [os.environ["BUCKET"]]
+        if os.environ.get("BUCKET")
+        else [
+            b["name"]
+            for b in get(token, "https://storage.googleapis.com/storage/v1/b", project=PROJECT).get("items", [])
+        ]
+    )
     total, page = 0, None
     for name in names:
         while True:
-            listing = get(token, f"https://storage.googleapis.com/storage/v1/b/{name}/o", fields="items(size),nextPageToken", maxResults=1000, **({"pageToken": page} if page else {}))
+            listing = get(
+                token,
+                f"https://storage.googleapis.com/storage/v1/b/{name}/o",
+                fields="items(size),nextPageToken",
+                maxResults=1000,
+                **({"pageToken": page} if page else {}),
+            )
             total += sum(int(o["size"]) for o in listing.get("items", []))
             if not (page := listing.get("nextPageToken")):
                 break
@@ -77,12 +122,23 @@ def bucket_gb(token: str) -> tuple[int, float]:
 
 def bucket_ops(token: str, start: datetime, end: datetime) -> dict[str, float]:
     """Cloud Storage requests per method over [start, end), all buckets of the project."""
-    iso = lambda t: t.isoformat().replace("+00:00", "Z")
-    params = {"filter": 'metric.type="storage.googleapis.com/api/request_count"', "interval.startTime": iso(start), "interval.endTime": iso(end),
-              "aggregation.alignmentPeriod": f"{int((end - start).total_seconds())}s", "aggregation.perSeriesAligner": "ALIGN_SUM",
-              "aggregation.crossSeriesReducer": "REDUCE_SUM", "aggregation.groupByFields": "metric.label.method"}
+
+    def iso(t):
+        return t.isoformat().replace("+00:00", "Z")
+
+    params = {
+        "filter": 'metric.type="storage.googleapis.com/api/request_count"',
+        "interval.startTime": iso(start),
+        "interval.endTime": iso(end),
+        "aggregation.alignmentPeriod": f"{int((end - start).total_seconds())}s",
+        "aggregation.perSeriesAligner": "ALIGN_SUM",
+        "aggregation.crossSeriesReducer": "REDUCE_SUM",
+        "aggregation.groupByFields": "metric.label.method",
+    }
     totals: dict[str, float] = {}
-    for s in get(token, f"https://monitoring.googleapis.com/v3/projects/{PROJECT}/timeSeries", **params).get("timeSeries", []):
+    for s in get(token, f"https://monitoring.googleapis.com/v3/projects/{PROJECT}/timeSeries", **params).get(
+        "timeSeries", []
+    ):
         method = s["metric"]["labels"]["method"]
         totals[method] = totals.get(method, 0.0) + sum(float(p["value"].get("int64Value") or 0) for p in s["points"])
     return totals
@@ -90,7 +146,7 @@ def bucket_ops(token: str, start: datetime, end: datetime) -> dict[str, float]:
 
 def usage() -> list[str]:
     token = access_token()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month, week = period(token, month_start, now), period(token, now - timedelta(days=7), now)
     days_in_month = calendar.monthrange(now.year, now.month)[1]
@@ -100,22 +156,36 @@ def usage() -> list[str]:
     for name in ("requests", "vcpu_s", "gib_s", "instance_s", "429s", "5xx"):
         projected = max(week[name] / 7 * days_in_month, month[name])
         free = FREE.get(name)
-        print(f"{name:12}{week[name]:>14,.0f}{month[name]:>16,.0f}{projected:>22,.0f}{(f'{free:,}' if free else ''):>14}{(f'{projected / free:.1%}' if free else ''):>8}")
+        print(
+            f"{name:12}{week[name]:>14,.0f}{month[name]:>16,.0f}{projected:>22,.0f}{(f'{free:,}' if free else ''):>14}{(f'{projected / free:.1%}' if free else ''):>8}"
+        )
         if free and projected > WARN_SHARE * free:
             warnings.append(f"{name} projected at {projected / free:.0%} of the free amount")
     if week["5xx"]:
         warnings.append(f"{week['5xx']:.0f} server errors in the last 7 days: read the Cloud Run logs")
     images, reg = registry_gb(token)
     buckets, bucket = bucket_gb(token)
-    print(f"image registry `{SERVICE}`: {images} image(s), {reg:.2f} GB of {FREE_REGISTRY_GB} GB free; buckets ({buckets}): {bucket:.3f} GB of {FREE_BUCKET_GB} GB free")
+    print(
+        f"image registry `{SERVICE}`: {images} image(s), {reg:.2f} GB of {FREE_REGISTRY_GB} GB free; buckets ({buckets}): {bucket:.3f} GB of {FREE_BUCKET_GB} GB free"
+    )
     if reg > FREE_REGISTRY_GB:  # cents a month: shown, but not worth a failed job and an email
-        print(f"NOTE image registry above the free {FREE_REGISTRY_GB} GB: delete old images, or deploy the API on the job's image so only one is kept")
+        print(
+            f"NOTE image registry above the free {FREE_REGISTRY_GB} GB: delete old images, or deploy the API on the job's image so only one is kept"
+        )
     ops = bucket_ops(token, month_start, now)
     class_a, class_b = (sum(ops.get(m, 0.0) for m in group) for group in (CLASS_A, CLASS_B))
-    print(f"bucket operations this month: Class A {class_a:,.0f} of {FREE_CLASS_A:,} free, Class B {class_b:,.0f} of {FREE_CLASS_B:,} free")
-    if class_a > 0.8 * FREE_CLASS_A or class_b > 0.8 * FREE_CLASS_B:  # cents a month ($0.005 per 1,000 Class A): shown, not worth a failed job
-        print("NOTE bucket operations near or above the free amount: the extra is billed per 1,000; many small files in state/ drive it")
-    print("Costs: console, Billing, Reports (group by SKU): Cloud Run should show its usage cancelled by 'Other savings' (the free-tier credit).")
+    print(
+        f"bucket operations this month: Class A {class_a:,.0f} of {FREE_CLASS_A:,} free, Class B {class_b:,.0f} of {FREE_CLASS_B:,} free"
+    )
+    if (
+        class_a > 0.8 * FREE_CLASS_A or class_b > 0.8 * FREE_CLASS_B
+    ):  # cents a month ($0.005 per 1,000 Class A): shown, not worth a failed job
+        print(
+            "NOTE bucket operations near or above the free amount: the extra is billed per 1,000; many small files in state/ drive it"
+        )
+    print(
+        "Costs: console, Billing, Reports (group by SKU): Cloud Run should show its usage cancelled by 'Other savings' (the free-tier credit)."
+    )
     for w in warnings:
         print("WARN", w)
     return warnings

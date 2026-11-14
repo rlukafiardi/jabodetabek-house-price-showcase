@@ -63,26 +63,29 @@ def raster_mean_within_m(raster, lat: pd.Series, lon: pd.Series, radius_m: float
     data = _band(raster.name)
     cell_m = raster.res[0] * 111_320  # degrees to metres; the cos(latitude) correction at 6 degrees south is 0.5%
     k = int(np.ceil(radius_m / cell_m))
-    rows, cols = np.mgrid[-k:k + 1, -k:k + 1]
-    disk = (rows ** 2 + cols ** 2) * cell_m ** 2 <= radius_m ** 2
+    rows, cols = np.mgrid[-k : k + 1, -k : k + 1]
+    disk = (rows**2 + cols**2) * cell_m**2 <= radius_m**2
     means = []
-    for la, lo in zip(lat, lon):
+    for la, lo in zip(lat, lon, strict=True):
         r, c = raster.index(lo, la)
-        window = data[r - k:r + k + 1, c - k:c + k + 1]
+        window = data[r - k : r + k + 1, c - k : c + k + 1]
         means.append(window[disk].mean() if window.shape == disk.shape else np.nan)  # nan only at the raster edge
     return np.array(means)
 
 
 def add_spatial_features(df: pd.DataFrame) -> pd.DataFrame:
     at_district_centroid = (df.lat.round(6) == df.district_lat.round(6)) & (df.lon.round(6) == df.district_lon.round(6))
-    features = {"coord_is_centroid": at_district_centroid.astype(int), "dist_monas_km": nearest_km(df.lat, df.lon, MONAS)}
+    features = {
+        "coord_is_centroid": at_district_centroid.astype(int),
+        "dist_monas_km": nearest_km(df.lat, df.lon, MONAS),
+    }
     stations = _csv("stations")
     for column, networks in RAIL_NETWORKS.items():
         features[column] = nearest_km(df.lat, df.lon, stations[stations.network.isin(networks)])
     for column, layer in POINT_LAYERS.items():
         features[column] = nearest_km(df.lat, df.lon, _csv(layer))
     with rasterio.open(FLOOD_TIF) as flood:
-        features["flood_index"] = np.array([v[0] for v in flood.sample(zip(df.lon, df.lat))])
+        features["flood_index"] = np.array([v[0] for v in flood.sample(zip(df.lon, df.lat, strict=True))])
         features["flood_mean_500m"] = raster_mean_within_m(flood, df.lat, df.lon, FLOOD_BUFFER_M)
     layers = {layer: _csv(layer) for layer, _ in BUFFERS.values()}
     for column, (layer, radius_km) in BUFFERS.items():

@@ -8,8 +8,14 @@ import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
 from sklearn.compose import TransformedTargetRegressor
-from sklearn.ensemble import (AdaBoostRegressor, BaggingRegressor, ExtraTreesRegressor, GradientBoostingRegressor,
-                              HistGradientBoostingRegressor, RandomForestRegressor)
+from sklearn.ensemble import (
+    AdaBoostRegressor,
+    BaggingRegressor,
+    ExtraTreesRegressor,
+    GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
+    RandomForestRegressor,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import ElasticNet, HuberRegressor, Lasso, LinearRegression, Ridge
 from sklearn.neighbors import KNeighborsRegressor
@@ -22,8 +28,8 @@ from xgboost import XGBRegressor
 
 from src.ingestion.parse import TEXT_FLAGS
 from src.modeling.compare_targets import FEATURES
-from src.modeling.experiments import gbm, log_result, run_cv, target
 from src.modeling.dataset import load_usable
+from src.modeling.experiments import gbm, log_result, run_cv, target
 
 E4_FEATURES = FEATURES + list(TEXT_FLAGS)
 REFERENCE = "E4 hist gbm (our settings)"
@@ -57,13 +63,18 @@ def prepared(model):
 def using(factory):
     def fit_predict(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
         return factory().fit(train[E4_FEATURES], target(train)).predict(test[E4_FEATURES])
+
     return fit_predict
 
 
 if __name__ == "__main__":
     df = load_usable()
-    wanted = sys.argv[1:] or list(DEFAULT_MODELS)  # e.g. `xgboost lightgbm` to run only those (always with the reference)
-    candidates = {name: (lambda f=factory: prepared(f())) for name, factory in DEFAULT_MODELS.items() if name in wanted} | {REFERENCE: gbm}
+    wanted = sys.argv[1:] or list(
+        DEFAULT_MODELS
+    )  # e.g. `xgboost lightgbm` to run only those (always with the reference)
+    candidates = {
+        name: (lambda f=factory: prepared(f())) for name, factory in DEFAULT_MODELS.items() if name in wanted
+    } | {REFERENCE: gbm}
     rows, per_repeat = [], {}
     for name, factory in candidates.items():
         for scheme in ("random", "spatial"):
@@ -73,5 +84,7 @@ if __name__ == "__main__":
         print(f"{name:28s} done", flush=True)
     table = pd.DataFrame(rows).pivot(index="model", columns="cv", values=["median_ape", "mean_ape"]) * 100
     for scheme in ("random", "spatial"):
-        table[("wins vs E4", scheme)] = [int(((per_repeat[m, scheme] - per_repeat[REFERENCE, scheme]) < 0).sum()) for m in table.index]
+        table[("wins vs E4", scheme)] = [
+            int(((per_repeat[m, scheme] - per_repeat[REFERENCE, scheme]) < 0).sum()) for m in table.index
+        ]
     print(table.round(1).sort_values(("median_ape", "spatial")).to_string())

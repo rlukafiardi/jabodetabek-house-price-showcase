@@ -67,6 +67,8 @@ if __name__ == "__main__":
         for bbox in tiles(per_side):
             rows += fetch(filter_, bbox, kind)
             time.sleep(PAUSE_SECONDS)
-        gdf = gpd.GeoDataFrame(rows, crs="EPSG:4326").drop_duplicates("osm_id")  # a way crossing a tile edge comes back from both tiles
+        gdf = gpd.GeoDataFrame(rows, crs="EPSG:4326").drop_duplicates(
+            "osm_id"
+        )  # a way crossing a tile edge comes back from both tiles
         gdf.to_file(EXTERNAL / f"osm_{layer}.geojson", driver="GeoJSON")
         print(layer, len(gdf), flush=True)

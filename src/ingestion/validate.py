@@ -5,7 +5,20 @@ import pandas as pd
 from src.config import INTERIM
 from src.modeling.split import DUPLICATE_KEY, JABODETABEK, LAT_RANGE, LON_RANGE, MAX_ROOMS
 
-REQUIRED = ["slug", "price", "land_area", "building_area", "bedrooms", "bathrooms", "city", "lat", "lon", "created_at", "status", "on_market"]
+REQUIRED = [
+    "slug",
+    "price",
+    "land_area",
+    "building_area",
+    "bedrooms",
+    "bathrooms",
+    "city",
+    "lat",
+    "lon",
+    "created_at",
+    "status",
+    "on_market",
+]
 POSITIVE = ["price", "land_area", "building_area"]
 # soft limits: rows outside are reported, not dropped
 SOFT_LIMITS = {
@@ -31,7 +44,9 @@ def hard_failures(df: pd.DataFrame) -> list[str]:
 
 
 def soft_flags(df: pd.DataFrame) -> dict[str, int]:
-    flags = {f"{c} outside [{lo:g}, {hi:g}]": int(((df[c] < lo) | (df[c] > hi)).sum()) for c, (lo, hi) in SOFT_LIMITS.items()}
+    flags = {
+        f"{c} outside [{lo:g}, {hi:g}]": int(((df[c] < lo) | (df[c] > hi)).sum()) for c, (lo, hi) in SOFT_LIMITS.items()
+    }
     flags["price_max != price"] = int((df.price != df.price_max).sum())
     return {k: v for k, v in flags.items() if v}
 

@@ -17,10 +17,15 @@ DIVERGING = [[0, RED], [0.5, NEUTRAL], [1, BLUE]]
 
 def styled(fig: go.Figure, title: str, height: int = 380, legend: bool = False) -> go.Figure:
     fig.update_layout(
-        title=dict(text=title, x=0, y=0.98, yanchor="top", font=dict(size=15, color=INK)), height=height,
-        margin=dict(l=10, r=10, t=90 if legend else 56, b=40), paper_bgcolor=SURFACE, plot_bgcolor=SURFACE, showlegend=legend,
+        title=dict(text=title, x=0, y=0.98, yanchor="top", font=dict(size=15, color=INK)),
+        height=height,
+        margin=dict(l=10, r=10, t=90 if legend else 56, b=40),
+        paper_bgcolor=SURFACE,
+        plot_bgcolor=SURFACE,
+        showlegend=legend,
         font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif", size=12, color=MUTED),
-        hoverlabel=dict(bgcolor="white", font_color=INK), legend=dict(orientation="h", x=0, y=1.0, yanchor="bottom"),  # between title and plot
+        hoverlabel=dict(bgcolor="white", font_color=INK),
+        legend=dict(orientation="h", x=0, y=1.0, yanchor="bottom"),  # between title and plot
     )
     fig.update_xaxes(gridcolor=GRID, zeroline=False, linecolor=GRID)
     fig.update_yaxes(gridcolor=GRID, zeroline=False, linecolor=GRID)
@@ -41,8 +46,12 @@ def section(title: str, takeaway: str, body: str) -> str:
 
 def plots_html(figures: dict[str, go.Figure]) -> dict[str, str]:
     """Each figure as an HTML fragment; plotly.js is embedded once, with the first figure, so the page works offline."""
-    return {name: to_html(fig, full_html=False, include_plotlyjs=(i == 0), config={"displayModeBar": False, "responsive": True})
-            for i, (name, fig) in enumerate(figures.items())}
+    return {
+        name: to_html(
+            fig, full_html=False, include_plotlyjs=(i == 0), config={"displayModeBar": False, "responsive": True}
+        )
+        for i, (name, fig) in enumerate(figures.items())
+    }
 
 
 def save_pngs(figures: dict[str, go.Figure], folder: Path, prefix: str) -> None:

@@ -9,16 +9,16 @@ from datetime import date
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
-
-from src.config import ROOT
-from src.ingestion.parse import TEXT_FLAGS
-from src.modeling.compare_targets import FEATURES, REPEATS, split_folds
-from src.features.spatial import BUFFER_FEATURES
-from src.features.context import CONTEXT_FEATURES
-from src.modeling.dataset import load_usable
 from xgboost import XGBRegressor
 
-from src.modeling.ensemble import FEATURES as E14A_FEATURES, MODEL_FEATURES, add_words, ensemble, text_scores
+from src.config import ROOT
+from src.features.context import CONTEXT_FEATURES
+from src.features.spatial import BUFFER_FEATURES
+from src.ingestion.parse import TEXT_FLAGS
+from src.modeling.compare_targets import FEATURES, REPEATS, split_folds
+from src.modeling.dataset import load_usable
+from src.modeling.ensemble import FEATURES as E14A_FEATURES
+from src.modeling.ensemble import MODEL_FEATURES, add_words, ensemble, text_scores
 from src.modeling.final import E4_FEATURES, FACILITY_GROUP, FINAL_FEATURES, SPEC_GROUP, XGB_PARAMS
 from src.modeling.final import fit_predict as final_fit_predict
 
@@ -60,6 +60,7 @@ def with_text_model(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
 def xgb_on(features: list[str]) -> FitPredict:
     def fit_predict(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
         return XGBRegressor(**XGB_PARAMS).fit(train[features], target(train)).predict(test[features])
+
     return fit_predict
 
 
@@ -68,10 +69,13 @@ def with_text_score(features: list[str]) -> FitPredict:
         train_score, test_score = text_scores(train, test)
         model = XGBRegressor(**XGB_PARAMS).fit(train[features].assign(text_score=train_score), target(train))
         return model.predict(test[features].assign(text_score=test_score))
+
     return fit_predict
 
 
-def run_cv(df: pd.DataFrame, fit_predict: FitPredict, scheme: str, repeats: int = REPEATS) -> tuple[dict[str, float], np.ndarray, np.ndarray]:
+def run_cv(
+    df: pd.DataFrame, fit_predict: FitPredict, scheme: str, repeats: int = REPEATS
+) -> tuple[dict[str, float], np.ndarray, np.ndarray]:
     """Metrics averaged over repeats, the out-of-fold predictions of repeat 0, and the median APE of each repeat."""
     per_repeat, first = [], None
     for repeat in range(repeats):
@@ -82,13 +86,27 @@ def run_cv(df: pd.DataFrame, fit_predict: FitPredict, scheme: str, repeats: int 
         error = (np.exp(pred) * df.land_area - df.price) / df.price
         per_repeat.append((np.median(np.abs(error)), np.mean(np.abs(error)), np.median(error)))
     median_ape, mean_ape, bias = np.array(per_repeat).T
-    metrics = {"median_ape": median_ape.mean(), "median_ape_sd": median_ape.std(), "mean_ape": mean_ape.mean(), "bias": bias.mean()}
+    metrics = {
+        "median_ape": median_ape.mean(),
+        "median_ape_sd": median_ape.std(),
+        "mean_ape": mean_ape.mean(),
+        "bias": bias.mean(),
+    }
     return metrics, first, median_ape
 
 
 def log_result(name: str, scheme: str, n: int, metrics: dict[str, float]) -> None:
-    row = pd.DataFrame([{"date": date.today().isoformat(), "experiment": name, "cv": scheme, "n": n,
-                         **{k: round(v * 100, 2) for k, v in metrics.items()}}])
+    row = pd.DataFrame(
+        [
+            {
+                "date": date.today().isoformat(),
+                "experiment": name,
+                "cv": scheme,
+                "n": n,
+                **{k: round(v * 100, 2) for k, v in metrics.items()},
+            }
+        ]
+    )
     old = pd.read_csv(RESULTS) if RESULTS.exists() else row.iloc[:0]
     old = old[~((old.experiment == name) & (old.cv == scheme))]
     pd.concat([old, row]).to_csv(RESULTS, index=False)
@@ -97,13 +115,37 @@ def log_result(name: str, scheme: str, n: int, metrics: dict[str, float]) -> Non
 def plus_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     """E25: the final three-model mean plus a tuned LightGBM (best E6 config) as a fourth equal member."""
     from lightgbm import LGBMRegressor
+
     train_score, test_score = text_scores(train, test)
     columns = MODEL_FEATURES + ["text_score"]
     x_train, x_test = train.assign(text_score=train_score)[columns], test.assign(text_score=test_score)[columns]
-    lgbm = LGBMRegressor(random_state=0, verbose=-1, subsample_freq=1, subsample=1.0, reg_lambda=5.0, num_leaves=7,
-                         n_estimators=200, min_child_samples=40, learning_rate=0.05, colsample_bytree=0.8)
+    lgbm = LGBMRegressor(
+        random_state=0,
+        verbose=-1,
+        subsample_freq=1,
+        subsample=1.0,
+        reg_lambda=5.0,
+        num_leaves=7,
+        n_estimators=200,
+        min_child_samples=40,
+        learning_rate=0.05,
+        colsample_bytree=0.8,
+    )
     three = ensemble(MODEL_FEATURES, text=True)(train, test)
     return (3 * three + lgbm.fit(x_train, target(train)).predict(x_test)) / 4
+
+
+def zero_va(mode: str) -> FitPredict:
+    """E26: the final ensemble with 0 VA electricity mapped to missing ("missing") or kept and flagged ("flag")."""
+    features = MODEL_FEATURES + (["spec_electricity_zero"] if mode == "flag" else [])
+
+    def prepare(df: pd.DataFrame) -> pd.DataFrame:
+        zero = df.spec_electricity_va == 0
+        df = df.assign(spec_electricity_zero=zero.astype(int))
+        return df.assign(spec_electricity_va=df.spec_electricity_va.mask(zero)) if mode == "missing" else df
+
+    model = ensemble(features, text=True)
+    return lambda train, test: model(prepare(train), prepare(test))
 
 
 EXPERIMENTS: dict[str, FitPredict] = {
@@ -131,7 +173,11 @@ EXPERIMENTS: dict[str, FitPredict] = {
     "E25f extra trees alone": ensemble(MODEL_FEATURES, text=True, members=("extra trees",)),
     "E25g ridge alone": ensemble(MODEL_FEATURES, text=True, members=("ridge",)),
     "E25h final plus LightGBM": plus_lightgbm,
-    "E14b ensemble + spec fields + facilities + text score": ensemble(FINAL_FEATURES + SPEC_GROUP + FACILITY_GROUP, text=True),
+    "E26a 0 VA electricity as missing": zero_va("missing"),
+    "E26b 0 VA electricity kept, plus a zero flag": zero_va("flag"),
+    "E14b ensemble + spec fields + facilities + text score": ensemble(
+        FINAL_FEATURES + SPEC_GROUP + FACILITY_GROUP, text=True
+    ),
 }
 
 if __name__ == "__main__":
@@ -144,11 +190,18 @@ if __name__ == "__main__":
         for scheme in ("random", "spatial"):
             metrics, _, per_repeat[name, scheme] = run_cv(df, EXPERIMENTS[name], scheme)
             log_result(name, scheme, len(df), metrics)
-            print(f"{name:26s} {scheme:8s} median APE {metrics['median_ape']:.1%} (sd {metrics['median_ape_sd']:.1%})"
-                  f" | mean APE {metrics['mean_ape']:.1%} | bias {metrics['bias']:+.1%}", flush=True)
-    if "--paired" in sys.argv and len(chosen) >= 2:  # identical folds: compare each experiment with the first, repeat by repeat
+            print(
+                f"{name:26s} {scheme:8s} median APE {metrics['median_ape']:.1%} (sd {metrics['median_ape_sd']:.1%})"
+                f" | mean APE {metrics['mean_ape']:.1%} | bias {metrics['bias']:+.1%}",
+                flush=True,
+            )
+    if (
+        "--paired" in sys.argv and len(chosen) >= 2
+    ):  # identical folds: compare each experiment with the first, repeat by repeat
         a = chosen[0]
         for b in chosen[1:]:
             for scheme in ("random", "spatial"):
                 diff = (per_repeat[b, scheme] - per_repeat[a, scheme]) * 100
-                print(f"{b} minus {a}, {scheme}: mean {diff.mean():+.2f} points, better in {int((diff < 0).sum())}/{len(diff)} repeats")
+                print(
+                    f"{b} minus {a}, {scheme}: mean {diff.mean():+.2f} points, better in {int((diff < 0).sum())}/{len(diff)} repeats"
+                )

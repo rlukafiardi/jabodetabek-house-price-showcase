@@ -4,8 +4,21 @@ from src.ingestion.validate import hard_failures, soft_flags
 
 
 def listings(**changes) -> pd.DataFrame:
-    row = {"slug": "a", "price": 1e9, "price_max": 1e9, "land_area": 100, "building_area": 90, "bedrooms": 3, "bathrooms": 2, "city": "Kota Bekasi",
-           "lat": -6.25, "lon": 107.0, "created_at": pd.Timestamp("2026-06-01"), "status": "active", "on_market": True}
+    row = {
+        "slug": "a",
+        "price": 1e9,
+        "price_max": 1e9,
+        "land_area": 100,
+        "building_area": 90,
+        "bedrooms": 3,
+        "bathrooms": 2,
+        "city": "Kota Bekasi",
+        "lat": -6.25,
+        "lon": 107.0,
+        "created_at": pd.Timestamp("2026-06-01"),
+        "status": "active",
+        "on_market": True,
+    }
     return pd.DataFrame([{**row, **changes}])
 
 

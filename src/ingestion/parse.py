@@ -29,12 +29,34 @@ TEXT_FLAGS = {
 
 
 # Spec and facility fields from specsAndFacilities (about 57 keys; the ones below appear in at least 10% of listings).
-SPEC_NUMERIC = {"spec_electricity_va": "specifications.electricity",  # total_toilet is not kept: it always equals bathrooms
-                "spec_carport": "specifications.carport_capacity", "spec_car_access": "specifications.car_access_capacity",
-                "spec_garage": "specifications.garage_capacity", "spec_maid_rooms": "specifications.total_household_assistant_room"}
-FACILITY_FLAGS = ["full_presence_security", "air_conditioner", "kitchen_set", "garden", "balcony", "swimming_pool", "gym",
-                  "elevator", "cctv", "jogging_track", "water_heater", "public_swimming_pool"]
-SPEC_FEATURES = [*SPEC_NUMERIC, "spec_furnished_level", "spec_water_pam", "fac_count", *(f"fac_{name}" for name in FACILITY_FLAGS)]
+SPEC_NUMERIC = {
+    "spec_electricity_va": "specifications.electricity",  # total_toilet is not kept: it always equals bathrooms
+    "spec_carport": "specifications.carport_capacity",
+    "spec_car_access": "specifications.car_access_capacity",
+    "spec_garage": "specifications.garage_capacity",
+    "spec_maid_rooms": "specifications.total_household_assistant_room",
+}
+FACILITY_FLAGS = [
+    "full_presence_security",
+    "air_conditioner",
+    "kitchen_set",
+    "garden",
+    "balcony",
+    "swimming_pool",
+    "gym",
+    "elevator",
+    "cctv",
+    "jogging_track",
+    "water_heater",
+    "public_swimming_pool",
+]
+SPEC_FEATURES = [
+    *SPEC_NUMERIC,
+    "spec_furnished_level",
+    "spec_water_pam",
+    "fac_count",
+    *(f"fac_{name}" for name in FACILITY_FLAGS),
+]
 
 TEXT_FILE = INTERIM / "portal_text.csv"  # slug + cleaned words for the text model; gitignored, never printed
 
@@ -73,18 +95,27 @@ def spec_features(d: dict) -> dict:
     numeric = {name: pd.to_numeric(spec.get(key), errors="coerce") for name, key in SPEC_NUMERIC.items()}
     furnished = str(spec.get("specifications.property_furnished_condition", ""))
     water = spec.get("specifications.water_source")
-    ticked = {key for key, value in spec.items() if key.startswith("facilities.") and str(value).lower() == "true"}  # the API sends "true" as a string
+    ticked = {
+        key for key, value in spec.items() if key.startswith("facilities.") and str(value).lower() == "true"
+    }  # the API sends "true" as a string
     flags = {f"fac_{name}": int(f"facilities.{name}" in ticked) for name in FACILITY_FLAGS}
-    return {**numeric,
-            "spec_furnished_level": {"non_furnished": 0, "semi_furnished": 1, "furnished": 2}.get(furnished.split(".")[-1], float("nan")),
-            "spec_water_pam": {"PAM": 1, "Air Tanah": 0}.get(water, float("nan")),
-            "fac_count": len(ticked), **flags}
+    return {
+        **numeric,
+        "spec_furnished_level": {"non_furnished": 0, "semi_furnished": 1, "furnished": 2}.get(
+            furnished.split(".")[-1], float("nan")
+        ),
+        "spec_water_pam": {"PAM": 1, "Air Tanah": 0}.get(water, float("nan")),
+        "fac_count": len(ticked),
+        **flags,
+    }
 
 
 def parse_detail(d: dict) -> dict:
     specs = d["specs"]
     district = d["district"]
-    district_lat, district_lon = map(float, COORDINATE.match(district["coordinate"]).groups()) if district else (None, None)
+    district_lat, district_lon = (
+        map(float, COORDINATE.match(district["coordinate"]).groups()) if district else (None, None)
+    )
     return {
         "slug": d["slug"],
         "building_type": d["buildingType"],

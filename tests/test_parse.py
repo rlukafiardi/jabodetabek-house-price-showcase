@@ -5,15 +5,38 @@ import pandas as pd
 from src.ingestion.parse import DROP_KEYS, clean_words, extract_detail, parse_detail, spec_features, text_flags
 
 DETAIL = {
-    "slug": "dijual-rumah-contoh", "buildingType": "house", "minPrice": 1_500_000_000, "maxPrice": 1_500_000_000,
-    "specs": {"surfaceArea": 100, "buildingArea": 120, "bedroom": 3, "restroom": 2, "numberOfFloor": 2, "certificate": "SHM"},
-    "province": {"title": "DKI Jakarta"}, "city": {"title": "Kota Jakarta Selatan"},
-    "district": {"title": "Tebet", "coordinate": "(-6.23,106.85)"}, "subDistrict": {"title": "Tebet Barat"},
-    "coordinate": [-6.231, 106.851], "createdAt": "2026-06-01T00:00:00Z", "status": "ListingStatus.active", "onMarket": True,
-    "title": "Rumah mewah cluster bebas banjir", "description": "<p>Hubungi 0812-3456-7890 atau agen@contoh.com</p>",
-    "specsAndFacilities": [{"localeKey": "specifications.electricity", "value": "2200"},
-                           {"localeKey": "facilities.garden", "value": "true"}, {"localeKey": "facilities.gym", "value": "false"}],
-    "owner": {"name": "Agen", "phone": "0812"}, "photoURLs": ["a.jpg"], "listing": {"x": 1}, "photos360": [], "wishlistGuid": "g",
+    "slug": "dijual-rumah-contoh",
+    "buildingType": "house",
+    "minPrice": 1_500_000_000,
+    "maxPrice": 1_500_000_000,
+    "specs": {
+        "surfaceArea": 100,
+        "buildingArea": 120,
+        "bedroom": 3,
+        "restroom": 2,
+        "numberOfFloor": 2,
+        "certificate": "SHM",
+    },
+    "province": {"title": "DKI Jakarta"},
+    "city": {"title": "Kota Jakarta Selatan"},
+    "district": {"title": "Tebet", "coordinate": "(-6.23,106.85)"},
+    "subDistrict": {"title": "Tebet Barat"},
+    "coordinate": [-6.231, 106.851],
+    "createdAt": "2026-06-01T00:00:00Z",
+    "status": "ListingStatus.active",
+    "onMarket": True,
+    "title": "Rumah mewah cluster bebas banjir",
+    "description": "<p>Hubungi 0812-3456-7890 atau agen@contoh.com</p>",
+    "specsAndFacilities": [
+        {"localeKey": "specifications.electricity", "value": "2200"},
+        {"localeKey": "facilities.garden", "value": "true"},
+        {"localeKey": "facilities.gym", "value": "false"},
+    ],
+    "owner": {"name": "Agen", "phone": "0812"},
+    "photoURLs": ["a.jpg"],
+    "listing": {"x": 1},
+    "photos360": [],
+    "wishlistGuid": "g",
 }
 
 

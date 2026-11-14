@@ -22,7 +22,12 @@ def group_median_baseline(df: pd.DataFrame, scheme: str, groups: list[str]) -> d
         error = (np.exp(pred) * df.land_area - df.price) / df.price
         per_repeat.append((np.median(np.abs(error)), np.mean(np.abs(error)), np.median(error)))
     median_ape, mean_ape, bias = np.array(per_repeat).T
-    return {"median_ape": median_ape.mean(), "median_ape_sd": median_ape.std(), "mean_ape": mean_ape.mean(), "bias": bias.mean()}
+    return {
+        "median_ape": median_ape.mean(),
+        "median_ape_sd": median_ape.std(),
+        "mean_ape": mean_ape.mean(),
+        "bias": bias.mean(),
+    }
 
 
 if __name__ == "__main__":
@@ -30,10 +35,22 @@ if __name__ == "__main__":
     rows = []
     for scheme in ("random", "spatial"):
         rows.append({"cv": scheme, "model": "B0 city median", **group_median_baseline(df, scheme, ["city"])})
-        rows.append({"cv": scheme, "model": "B1 kecamatan median (fallback city)", **group_median_baseline(df, scheme, ["kecamatan_code", "city"])})
+        rows.append(
+            {
+                "cv": scheme,
+                "model": "B1 kecamatan median (fallback city)",
+                **group_median_baseline(df, scheme, ["kecamatan_code", "city"]),
+            }
+        )
         for model in ("ridge", "gbm"):
             rows.append({"cv": scheme, "model": model, **evaluate(df, scheme, model, "land_area")})
     table = pd.DataFrame(rows)
     print(f"{len(df)} training listings")
-    print(table.assign(median_ape=lambda t: (t.median_ape * 100).round(1), median_ape_sd=lambda t: (t.median_ape_sd * 100).round(1),
-                       mean_ape=lambda t: (t.mean_ape * 100).round(1), bias=lambda t: (t.bias * 100).round(1)).to_string(index=False))
+    print(
+        table.assign(
+            median_ape=lambda t: (t.median_ape * 100).round(1),
+            median_ape_sd=lambda t: (t.median_ape_sd * 100).round(1),
+            mean_ape=lambda t: (t.mean_ape * 100).round(1),
+            bias=lambda t: (t.bias * 100).round(1),
+        ).to_string(index=False)
+    )

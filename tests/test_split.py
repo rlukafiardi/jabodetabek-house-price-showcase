@@ -16,7 +16,9 @@ def test_carve_test_is_stratified_and_deterministic():
 
 def test_fitted_listings_returns_exactly_the_listed_slugs(tmp_path, monkeypatch):
     # "b-old" is the same house as the later-crawled "a-new" (earlier slug): usable_listings would swap them, the fitted list must not
-    listings = pd.DataFrame({"slug": ["a-new", "b-old", "c-other"], "price": [5, 5, 7], "created_at": pd.to_datetime(["2026-11-02"] * 3)})
+    listings = pd.DataFrame(
+        {"slug": ["a-new", "b-old", "c-other"], "price": [5, 5, 7], "created_at": pd.to_datetime(["2026-11-02"] * 3)}
+    )
     listings.to_csv(tmp_path / "portal_listings.csv", index=False)
     (tmp_path / "train_slugs.txt").write_text("b-old\nc-other\n", encoding="utf-8")
     monkeypatch.setattr(split, "INTERIM", tmp_path)

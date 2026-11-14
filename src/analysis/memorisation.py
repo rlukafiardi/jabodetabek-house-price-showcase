@@ -30,10 +30,23 @@ if __name__ == "__main__":
         predictions = {name: (m.predict(train[columns]), m.predict(test[columns])) for name, m in parts.items()}
         predictions["ensemble"] = tuple(np.mean([p[i] for p in predictions.values()], axis=0) for i in (0, 1))
         for name, (fitted, held_out) in predictions.items():
-            rows.append({"model": name, "in-sample median error": np.median(ape(fitted, train)), "held-out median error": np.median(ape(held_out, test)),
-                         "in-sample within 5%": (ape(fitted, train) <= 0.05).mean(), "held-out within 5%": (ape(held_out, test) <= 0.05).mean()})
+            rows.append(
+                {
+                    "model": name,
+                    "in-sample median error": np.median(ape(fitted, train)),
+                    "held-out median error": np.median(ape(held_out, test)),
+                    "in-sample within 5%": (ape(fitted, train) <= 0.05).mean(),
+                    "held-out within 5%": (ape(held_out, test) <= 0.05).mean(),
+                }
+            )
     table = pd.DataFrame(rows).groupby("model", sort=False).mean()
     table["held-out / in-sample"] = table["held-out median error"] / table["in-sample median error"]
     TABLE.parent.mkdir(parents=True, exist_ok=True)
     table.round(3).to_csv(TABLE)
-    print((table * 100).round(1).drop(columns="held-out / in-sample").join(table["held-out / in-sample"].round(1)).to_string())
+    print(
+        (table * 100)
+        .round(1)
+        .drop(columns="held-out / in-sample")
+        .join(table["held-out / in-sample"].round(1))
+        .to_string()
+    )

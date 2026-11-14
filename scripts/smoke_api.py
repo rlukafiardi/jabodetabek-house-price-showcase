@@ -4,11 +4,22 @@ from fastapi.testclient import TestClient
 
 from src.serving.api import app
 
-house = {"lat": -6.2615, "lon": 106.8106, "land_area": 150, "building_area": 200, "bedrooms": 4, "bathrooms": 3, "floors": 2, "notes": "rumah mewah cluster"}
+house = {
+    "lat": -6.2615,
+    "lon": 106.8106,
+    "land_area": 150,
+    "building_area": 200,
+    "bedrooms": 4,
+    "bathrooms": 3,
+    "floors": 2,
+    "notes": "rumah mewah cluster",
+}
 with TestClient(app) as client:
     print("health", client.get("/health").json())
     print("model", client.get("/model").json())
     response = client.post("/estimate", json=house)
     print("estimate", response.status_code, response.json())
     assert response.status_code == 200 and response.json()["price_idr"] > 1e9 and response.json()["factors"]
-assert client.post("/estimate", json={**house, "lat": "NaN"}).status_code == 422  # a hostile input is a refusal, not a crash
+assert (
+    client.post("/estimate", json={**house, "lat": "NaN"}).status_code == 422
+)  # a hostile input is a refusal, not a crash
