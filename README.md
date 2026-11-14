@@ -4,7 +4,7 @@ An asking-price map and estimator for houses in Jabodetabek (Jakarta, Bogor, Dep
 and what a house like yours would ask, with an honest range around the number.
 
 **Live demo:** [harga-rumah-jabodetabek.netlify.app](https://harga-rumah-jabodetabek.netlify.app) (in Bahasa Indonesia, free to use).
-**Model card:** [docs/model-card.md](docs/model-card.md).
+**Model card:** [docs/model-card.md](docs/model-card.md). **Model report (18-page PDF):** [docs/model-report.pdf](docs/model-report.pdf).
 
 ![The site on first visit](reports/figures/site_welcome.png)
 
