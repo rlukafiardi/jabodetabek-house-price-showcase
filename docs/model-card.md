@@ -70,8 +70,9 @@ harder outer areas.
   that noise is about 6%, small next to the model error.
 - **Regression to the mean.** The cheapest listings are over-estimated and the dearest under-estimated (on the first test
   set: +16% and -24% for the extreme quarters).
-- **Thin coverage:** 23 of 183 kecamatan have 1 to 4 listings and 13 have none (all remote parts of Kab. Bogor, Kab. Tangerang
-  and Kab. Bekasi); estimates there extrapolate and the range is wider.
+- **Thin coverage:** of 183 kecamatan, 23 have fewer than the 5 listings needed to show a price: 10 have 1 to 4 and 13 have none
+  (counted on the 4,029 usable listings behind the map, `reports/tables/kecamatan_prices.csv`; remote parts of Kab. Bogor,
+  Kab. Tangerang and Kab. Bekasi); estimates there extrapolate and the range is wider.
 - **The text score is the strongest single input** (about 32% mean SHAP effect). It mostly encodes place names and wording
   (neighbourhoods, "mewah", "subsidi", "murah"), learned from full listing descriptions. A short note typed into the app is not
   the same kind of text, so the score is unreliable there; the app should treat it as optional.
